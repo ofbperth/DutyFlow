@@ -1,0 +1,282 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile in the hospital duty scheduling system",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier, matches Auth UID or virtual user ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user (empty for virtual users)"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "scheduler", "user"],
+          "description": "Access level of the user"
+        },
+        "departmentId": {
+          "type": "string",
+          "description": "Assigned department ID"
+        },
+        "isVirtual": {
+          "type": "boolean",
+          "description": "Whether the user is a virtual user (no actual login/calendar)"
+        },
+        "googleCalendarId": {
+          "type": "string",
+          "description": "Linked Google Calendar ID for shift sync"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO 8601 date string"
+        }
+      },
+      "required": ["id", "name", "role", "isVirtual", "createdAt"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Hospital department/ward",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique department identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the department"
+        },
+        "color": {
+          "type": "string",
+          "description": "Hex color code or Tailwind color class for visual identification"
+        }
+      },
+      "required": ["id", "name", "color"]
+    },
+    "ShiftTemplate": {
+      "title": "ShiftTemplate",
+      "description": "Predefined shift type template (e.g. Morning, Night, ICU Cover)",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique template identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the shift (e.g., Night Shift)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Shift start time (HH:MM)"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "Shift end time (HH:MM)"
+        },
+        "color": {
+          "type": "string",
+          "description": "Hex or theme color for the shift representation"
+        },
+        "departmentId": {
+          "type": "string",
+          "description": "Department this template belongs to"
+        }
+      },
+      "required": ["id", "name", "startTime", "endTime", "color", "departmentId"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "An assigned shift on the schedule",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique shift assignment identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the assigned user (virtual or real)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the shift (YYYY-MM-DD)"
+        },
+        "templateId": {
+          "type": "string",
+          "description": "Template ID used to assign the shift"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "published"],
+          "description": "Schedule status"
+        },
+        "departmentId": {
+          "type": "string",
+          "description": "Department ID where the shift occurs"
+        },
+        "assignedBy": {
+          "type": "string",
+          "description": "User ID who assigned this shift"
+        },
+        "googleCalendarEventId": {
+          "type": "string",
+          "description": "Synced Google Calendar Event ID for real users"
+        }
+      },
+      "required": ["id", "userId", "date", "templateId", "status", "departmentId", "assignedBy"]
+    },
+    "Availability": {
+      "title": "Availability",
+      "description": "Submitted staff availability or preference for a date",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID of the staff member"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date (YYYY-MM-DD)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["available", "unavailable", "preferred"],
+          "description": "Availability level"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional details or reasons"
+        }
+      },
+      "required": ["id", "userId", "date", "status"]
+    },
+    "ShiftSwap": {
+      "title": "ShiftSwap",
+      "description": "Request to swap shifts between two staff members",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "requestingUserId": {
+          "type": "string",
+          "description": "User ID who initiated the swap"
+        },
+        "requestingShiftId": {
+          "type": "string",
+          "description": "Shift ID owned by the requester"
+        },
+        "targetUserId": {
+          "type": "string",
+          "description": "User ID targeted for the swap"
+        },
+        "targetShiftId": {
+          "type": "string",
+          "description": "Shift ID target user swaps with (optional, can be null for empty coverage request)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected", "completed"],
+          "description": "Status of the swap workflow"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO 8601 timestamp"
+        }
+      },
+      "required": ["id", "requestingUserId", "requestingShiftId", "targetUserId", "status", "createdAt"]
+    },
+    "Holiday": {
+      "title": "Holiday",
+      "description": "Public or hospital-specific holidays",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique holiday identifier"
+        },
+        "date": {
+          "type": "string",
+          "description": "Holiday date (YYYY-MM-DD)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the holiday (e.g., New Year's Day)"
+        }
+      },
+      "required": ["id", "date", "name"]
+    },
+    "SchedulePeriod": {
+      "title": "SchedulePeriod",
+      "description": "Shift scheduling period or rotation name and dates",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique period identifier"
+        },
+        "title": {
+          "type": "string",
+          "description": "Rotation cycle name"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start date (YYYY-MM-DD)"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "End date (YYYY-MM-DD)"
+        }
+      },
+      "required": ["id", "title", "startDate", "endDate"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of hospital users and metadata"
+    },
+    "departments": {
+      "schema": "Department",
+      "description": "Collection of hospital departments and wards"
+    },
+    "shiftTemplates": {
+      "schema": "ShiftTemplate",
+      "description": "Predefined templates for duty shifts"
+    },
+    "shifts": {
+      "schema": "Shift",
+      "description": "Scheduled duty assignments"
+    },
+    "availabilities": {
+      "schema": "Availability",
+      "description": "Staff availability preferences"
+    },
+    "shiftSwaps": {
+      "schema": "ShiftSwap",
+      "description": "Shift swap requests and statuses"
+    },
+    "holidays": {
+      "schema": "Holiday",
+      "description": "Hospital holidays"
+    },
+    "config": {
+      "schema": "SchedulePeriod",
+      "description": "Configuration documents such as schedule periods"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "DutyFlow",
+  "description": "Collaborative hospital duty scheduling platform with Google Calendar synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
