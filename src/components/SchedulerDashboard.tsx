@@ -674,103 +674,91 @@ export default function SchedulerDashboard({
             Drag templates from below onto a staff cell, or click on an empty cell in the scheduler matrix to assign duties.
           </p>
 
-          <div className="space-y-2 max-h-80 xl:max-h-[600px] overflow-y-auto pr-1">
-            {filteredTemplates.filter(t => ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name) || t.groupId === 'group-universal').length > 0 && (
-              <>
-                <h3 className="text-[10px] font-bold text-slate-400 mt-2 mb-2 uppercase">Groups 1-12 Templates</h3>
-                {filteredTemplates.filter(t => ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name) || t.groupId === 'group-universal').map(t => (
-                  <div
-                    key={t.id}
-                    draggable
-                    onDragStart={() => handleDragStartTemplate(t.id)}
-                    className="py-2 border-b border-white/5 hover:bg-white/5 transition-colors cursor-grab active:cursor-grabbing flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                        <span className="text-xs font-bold text-slate-200">{t.name}</span>
+          <div className="space-y-4 max-h-80 xl:max-h-[600px] overflow-y-auto pr-1">
+            {/* 1. General / Universal Templates */}
+            {filteredTemplates.filter(t => !t.isPooled && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))).length > 0 && (
+              <div>
+                <h3 className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">General Templates</h3>
+                <div className="space-y-1">
+                  {filteredTemplates.filter(t => !t.isPooled && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))).map(t => (
+                    <div
+                      key={t.id}
+                      draggable
+                      onDragStart={() => handleDragStartTemplate(t.id)}
+                      className="py-2 px-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-blue-500/40 hover:bg-white/10 transition-colors cursor-grab active:cursor-grabbing flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                          <span className="text-xs font-bold text-slate-200">{t.name}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5 tabular-nums">{t.startTime} - {t.endTime}</div>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-1 tabular-nums">{t.startTime} - {t.endTime}</div>
+                      <div className="text-[9px] font-mono text-blue-400/80 uppercase tracking-widest font-bold">DRAG</div>
                     </div>
-                    <div className="text-[9px] font-mono text-blue-400/80 uppercase tracking-widest font-bold">DRAG</div>
-                  </div>
-                ))}
-              </>
+                  ))}
+                </div>
+              </div>
             )}
 
-            {filteredTemplates.filter(t => t.groupId === 'group-1650' || ['1650 เช้า(วันหยุด)', '1650 บ่ายดึก', 'เช้า(วันหยุด)', 'บ่ายดึก'].includes(t.name)).length > 0 && (
-              <>
-                <h3 className="text-[10px] font-bold text-purple-400 mt-4 mb-2 uppercase flex items-center gap-1">
-                  <span>🏷️</span> เวร1650 Templates
-                </h3>
-                {filteredTemplates.filter(t => t.groupId === 'group-1650' || ['1650 เช้า(วันหยุด)', '1650 บ่ายดึก', 'เช้า(วันหยุด)', 'บ่ายดึก'].includes(t.name)).map(t => (
-                  <div
-                    key={t.id}
-                    draggable
-                    onDragStart={() => handleDragStartTemplate(t.id)}
-                    className="py-2 border-b border-white/5 hover:bg-white/5 transition-colors cursor-grab active:cursor-grabbing flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                        <span className="text-xs font-bold text-purple-200">{t.name}</span>
+            {/* 2. Group Specific Templates (Dynamically for all groups including สระบุรี, 1650, ICU, etc.) */}
+            {groups.map(g => {
+              const groupTemps = filteredTemplates.filter(t => !t.isPooled && t.groupId === g.id && !['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name));
+              if (groupTemps.length === 0) return null;
+              return (
+                <div key={g.id}>
+                  <h3 className="text-[10px] font-bold mt-3 mb-2 uppercase flex items-center gap-1.5" style={{ color: g.color || '#a855f7' }}>
+                    <span>🏷️</span> {g.name} Templates
+                  </h3>
+                  <div className="space-y-1">
+                    {groupTemps.map(t => (
+                      <div
+                        key={t.id}
+                        draggable
+                        onDragStart={() => handleDragStartTemplate(t.id)}
+                        className="py-2 px-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-emerald-500/40 hover:bg-white/10 transition-colors cursor-grab active:cursor-grabbing flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color || g.color }} />
+                            <span className="text-xs font-bold text-slate-200">{t.name}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5 tabular-nums">{t.startTime} - {t.endTime}</div>
+                        </div>
+                        <div className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest font-bold">DRAG</div>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-1 tabular-nums">{t.startTime} - {t.endTime}</div>
-                    </div>
-                    <div className="text-[9px] font-mono text-purple-400 uppercase tracking-widest font-bold">DRAG</div>
+                    ))}
                   </div>
-                ))}
-              </>
-            )}
+                </div>
+              );
+            })}
 
-            {filteredTemplates.filter(t => ['group-icu8s', 'group-icu8n', 'group-icu3'].includes(t.groupId)).length > 0 && (
-              <>
-                <h3 className="text-[10px] font-bold text-teal-400 mt-4 mb-2 uppercase flex items-center gap-1">
-                  <span>🏷️</span> ICU8S & ICU8N & ICU3 Templates
-                </h3>
-                {filteredTemplates.filter(t => ['group-icu8s', 'group-icu8n', 'group-icu3'].includes(t.groupId)).map(t => (
-                  <div
-                    key={t.id}
-                    draggable
-                    onDragStart={() => handleDragStartTemplate(t.id)}
-                    className="py-2 border-b border-white/5 hover:bg-white/5 transition-colors cursor-grab active:cursor-grabbing flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                        <span className="text-xs font-bold text-teal-200">{t.name}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-1 tabular-nums">{t.startTime} - {t.endTime}</div>
-                    </div>
-                    <div className="text-[9px] font-mono text-teal-400 uppercase tracking-widest font-bold">DRAG</div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {filteredTemplates.filter(t => t.isPooled).length > 0 && (
-              <>
-                <h3 className="text-[10px] font-bold text-amber-400 mt-4 mb-2 uppercase flex items-center gap-1">
+            {/* 3. Special / Pooled Shifts */}
+            {filteredTemplates.filter(t => t.isPooled || t.groupId === 'group-pooled').length > 0 && (
+              <div>
+                <h3 className="text-[10px] font-bold text-amber-400 mt-3 mb-2 uppercase flex items-center gap-1.5">
                   <span>✨</span> Special / Pooled Shifts
                 </h3>
-                {filteredTemplates.filter(t => t.isPooled).map(t => (
-                  <div
-                    key={t.id}
-                    draggable
-                    onDragStart={() => handleDragStartTemplate(t.id)}
-                    className="py-2 border-b border-white/5 hover:bg-white/5 transition-colors cursor-grab active:cursor-grabbing flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                        <span className="text-xs font-bold text-amber-200">{t.name}</span>
+                <div className="space-y-1">
+                  {filteredTemplates.filter(t => t.isPooled || t.groupId === 'group-pooled').map(t => (
+                    <div
+                      key={t.id}
+                      draggable
+                      onDragStart={() => handleDragStartTemplate(t.id)}
+                      className="py-2 px-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-amber-500/40 hover:bg-white/10 transition-colors cursor-grab active:cursor-grabbing flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                          <span className="text-xs font-bold text-amber-200">{t.name}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5 tabular-nums">{t.startTime} - {t.endTime}</div>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-1 tabular-nums">{t.startTime} - {t.endTime}</div>
+                      <div className="text-[9px] font-mono text-amber-400 uppercase tracking-widest font-bold">DRAG</div>
                     </div>
-                    <div className="text-[9px] font-mono text-amber-400 uppercase tracking-widest font-bold">DRAG</div>
-                  </div>
-                ))}
-              </>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -1040,12 +1028,18 @@ export default function SchedulerDashboard({
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {templates.filter(t => {
                 const userAssignment = rotationAssignments.find(a => a.userId === assigningCell.userId);
-                const isGroup13 = userAssignment?.groupId === 'group-1650';
-                if (isGroup13) {
-                  return ['เช้า(วันหยุด)', 'บ่ายดึก'].includes(t.name);
-                } else {
-                  return ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name);
-                }
+                const userGroupId = userAssignment?.groupId;
+                if (!userGroupId) return true;
+                
+                const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(userGroupId);
+                return (
+                  t.groupId === userGroupId ||
+                  t.groupId === 'group-universal' ||
+                  t.groupId === 'group-pooled' ||
+                  !!t.isPooled ||
+                  allowedGroupIds.includes(t.groupId) ||
+                  ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name)
+                );
               }).map(t => (
                 <button
                   key={t.id}
