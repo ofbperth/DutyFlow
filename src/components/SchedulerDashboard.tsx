@@ -418,9 +418,13 @@ export default function SchedulerDashboard({
   const filteredTemplates = templates.filter(t => {
     if (!myGroupId) return true;
     const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(myGroupId);
+
+    if ((myGroupId === 'group-saraburi' || myGroupId === 'group-1650') && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))) {
+      return false;
+    }
+
     const isAllowedForGroup =
       t.groupId === myGroupId ||
-      t.groupId === 'group-universal' ||
       t.groupId === 'group-pooled' ||
       !!t.isPooled ||
       allowedGroupIds.includes(t.groupId);
@@ -1032,13 +1036,16 @@ export default function SchedulerDashboard({
                 if (!userGroupId) return true;
                 
                 const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(userGroupId);
+
+                if ((userGroupId === 'group-saraburi' || userGroupId === 'group-1650') && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))) {
+                  return false;
+                }
+
                 return (
                   t.groupId === userGroupId ||
-                  t.groupId === 'group-universal' ||
                   t.groupId === 'group-pooled' ||
                   !!t.isPooled ||
-                  allowedGroupIds.includes(t.groupId) ||
-                  ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name)
+                  allowedGroupIds.includes(t.groupId)
                 );
               }).map(t => (
                 <button

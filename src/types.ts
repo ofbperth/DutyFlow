@@ -94,7 +94,13 @@ export const CROSS_GROUP_RULES: Record<string, string[]> = {
 };
 
 export const getAllowedTargetGroupIdsForHomeGroup = (homeGroupId: string): string[] => {
-  const allowed: string[] = ['group-universal', 'group-pooled'];
+  const allowed: string[] = ['group-pooled'];
+  if (homeGroupId !== 'group-saraburi' && homeGroupId !== 'group-1650') {
+    allowed.push('group-universal');
+  }
+  if (homeGroupId === 'group-saraburi') {
+    allowed.push('group-saraburi');
+  }
   if (homeGroupId === 'group-1650' || homeGroupId === 'group-nvmdown' || homeGroupId === 'group-nvm23-asd11') {
     allowed.push('group-1650');
   }
