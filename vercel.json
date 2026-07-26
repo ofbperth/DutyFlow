@@ -1,8 +1,13 @@
 {
   "rewrites": [
     {
+      "source": "/__/auth/(.*)",
+      "destination": "https://dutyflow-502613.firebaseapp.com/__/auth/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
 }
+
