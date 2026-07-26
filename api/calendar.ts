@@ -1,11 +1,18 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 const PROJECT_ID = 'dutyflow-502613';
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
-// Helper to format Date to YYYYMMDDTHHMMSSZ
-const formatICSDate = (date: Date): string => {
-  return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+// Helper to format Date to YYYYMMDDTHHMMSS (Floating Local Time for iCal)
+const formatICSDateLocal = (dateStr: string, timeStr: string): string => {
+  const cleanDate = dateStr.replace(/-/g, ''); // "20260727"
+  const cleanTime = (timeStr || '00:00').replace(/:/g, '') + '00'; // "170000"
+  return `${cleanDate}T${cleanTime}`;
+};
+
+// Helper to calculate end date string for overnight shifts
+const getNextDayDateStr = (dateStr: string): string => {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().split('T')[0];
 };
 
 // Helper to extract fields from Firestore REST API document format
@@ -45,12 +52,12 @@ export default async function handler(req: any, res: any) {
 
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Fetch user, shifts, templates, and doctor groups in parallel from Firestore REST API
+    // Fetch user, shifts, templates, and doctor groups with pageSize=1000 to prevent pagination truncation
     const [userRes, shiftsRes, templatesRes, groupsRes] = await Promise.all([
       fetch(`${FIRESTORE_BASE}/users/${userId}`).catch(() => null),
-      fetch(`${FIRESTORE_BASE}/shifts`).catch(() => null),
-      fetch(`${FIRESTORE_BASE}/shiftTemplates`).catch(() => null),
-      fetch(`${FIRESTORE_BASE}/doctorGroups`).catch(() => null),
+      fetch(`${FIRESTORE_BASE}/shifts?pageSize=1000`).catch(() => null),
+      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000`).catch(() => null),
+      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000`).catch(() => null),
     ]);
 
     let userName = 'DutyFlow User';
@@ -60,13 +67,20 @@ export default async function handler(req: any, res: any) {
       if (parsedUser && parsedUser.name) userName = parsedUser.name;
     }
 
+    const targetUserIdLower = userId.toLowerCase();
     const shifts: any[] = [];
     if (shiftsRes && shiftsRes.ok) {
       const data = await shiftsRes.json();
       if (data.documents && Array.isArray(data.documents)) {
         data.documents.forEach((d: any) => {
           const parsed = parseFirestoreDoc(d);
-          if (parsed && parsed.userId === userId && parsed.status === 'published') {
+          if (
+            parsed &&
+            parsed.userId &&
+            parsed.userId.toLowerCase() === targetUserIdLower &&
+            parsed.status &&
+            parsed.status.toLowerCase() === 'published'
+          ) {
             shifts.push(parsed);
           }
         });
@@ -95,7 +109,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // Generate iCal feed string
+    // Generate iCal feed string using Floating Local Time
     let ics = '';
     ics += 'BEGIN:VCALENDAR\r\n';
     ics += 'VERSION:2.0\r\n';
@@ -103,8 +117,9 @@ export default async function handler(req: any, res: any) {
     ics += 'CALSCALE:GREGORIAN\r\n';
     ics += 'METHOD:PUBLISH\r\n';
     ics += `X-WR-CALNAME:DutyFlow: ${userName}\r\n`;
+    ics += 'X-WR-TIMEZONE:Asia/Bangkok\r\n';
 
-    const dtstamp = formatICSDate(new Date());
+    const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
     shifts.forEach((shift) => {
       const template = templates.find((t) => t.id === shift.templateId);
@@ -118,23 +133,21 @@ export default async function handler(req: any, res: any) {
       const [startHour, startMin] = startTime.split(':').map(Number);
       const [endHour, endMin] = endTime.split(':').map(Number);
 
-      const startDate = new Date(`${shift.date}T00:00:00`);
-      startDate.setHours(startHour || 0, startMin || 0, 0, 0);
-
-      const endDate = new Date(`${shift.date}T00:00:00`);
-      endDate.setHours(endHour || 0, endMin || 0, 0, 0);
-
-      if (endDate <= startDate) {
-        endDate.setDate(endDate.getDate() + 1);
+      let endDateStr = shift.date;
+      // Check if end time is before or equal to start time (overnight shift)
+      if (endHour < startHour || (endHour === startHour && endMin <= startMin)) {
+        endDateStr = getNextDayDateStr(shift.date);
       }
 
+      const dtStartStr = formatICSDateLocal(shift.date, startTime);
+      const dtEndStr = formatICSDateLocal(endDateStr, endTime);
       const uid = `${shift.id}@dutyflow.com`;
 
       ics += 'BEGIN:VEVENT\r\n';
       ics += `UID:${uid}\r\n`;
       ics += `DTSTAMP:${dtstamp}\r\n`;
-      ics += `DTSTART:${formatICSDate(startDate)}\r\n`;
-      ics += `DTEND:${formatICSDate(endDate)}\r\n`;
+      ics += `DTSTART:${dtStartStr}\r\n`;
+      ics += `DTEND:${dtEndStr}\r\n`;
       ics += `SUMMARY:🩺 DutyFlow: ${template.name || 'Shift'}\r\n`;
 
       if (group && group.name) {
