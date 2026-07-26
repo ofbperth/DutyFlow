@@ -7,10 +7,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
     function isAdmin() {
       return isAuthenticated() && (
         (request.auth.token.keys().hasAll(['email']) && request.auth.token.email == 'ofbperth@gmail.com') ||
@@ -35,15 +31,17 @@ service cloud.firestore {
     // 1. Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isAdmin() || isScheduler() || isOwner(userId));
-      allow update: if isAuthenticated() && (isAdmin() || isOwner(userId) || (isScheduler() && resource.data.isVirtual == true));
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        (isScheduler() && request.resource.data.role == 'user') ||
+        (isOwner(userId) && request.resource.data.role == 'user')
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (isOwner(userId) && request.resource.data.role == resource.data.role) ||
+        (isScheduler() && resource.data.isVirtual == true && request.resource.data.role == resource.data.role)
+      );
       allow delete: if isAdmin();
-    }
-
-    // 2. Departments collection
-    match /departments/{departmentId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
     }
 
     // 3. Shift Templates collection
@@ -105,6 +103,18 @@ service cloud.firestore {
     // 9. Test connection
     match /test/{docId} {
       allow read, write: if true;
+    }
+
+    // 10. Doctor Groups collection
+    match /doctorGroups/{groupId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isScheduler();
+    }
+
+    // 11. Rotation Assignments collection
+    match /rotationAssignments/{assignmentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isScheduler();
     }
   }
 }

@@ -1,0 +1,21 @@
+{
+  "short_name": "DutyFlow",
+  "name": "DutyFlow - Hospital Duty Scheduler",
+  "icons": [
+    {
+      "src": "/logo-nobg.png",
+      "type": "image/png",
+      "sizes": "280x280"
+    },
+    {
+      "src": "/logo-appicon.png",
+      "type": "image/png",
+      "sizes": "330x330",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0a071b",
+  "theme_color": "#0f0c24",
+  "display": "standalone"
+}

@@ -3,11 +3,9 @@ import {
   initAuth,
   googleSignIn,
   googleLogout,
-  setCachedToken,
-  getAccessToken,
   fetchUsers,
+  fetchUserById,
   saveUser,
-  fetchDepartments,
   fetchShiftTemplates,
   fetchShifts,
   fetchAvailabilities,
@@ -16,33 +14,92 @@ import {
   fetchSchedulePeriod,
   saveSchedulePeriod,
   seedInitialData,
-  testFirestoreConnection
+  testFirestoreConnection,
+  getDoctorGroups,
+  getRotationAssignments,
+  updateUserRole
 } from './firebase';
-import { getSyncQueue, addToSyncQueue, processSyncQueue, SyncTask } from './googleCalendar';
-import { User, Department, ShiftTemplate, Shift, Availability, ShiftSwap, Holiday, Role, SchedulePeriod } from './types';
+import { User, ShiftTemplate, Shift, Availability, ShiftSwap, Holiday, Role, SchedulePeriod, DoctorGroup, GroupRotationAssignment } from './types';
 
 import Navbar from './components/Navbar';
 import LoginView from './components/LoginView';
 import AdminDashboard from './components/AdminDashboard';
 import SchedulerDashboard from './components/SchedulerDashboard';
 import UserDashboard from './components/UserDashboard';
+import PooledShiftsDashboard from './components/PooledShiftsDashboard';
+import PrivacyPolicyView from './components/PrivacyPolicyView';
+import TermsOfServiceView from './components/TermsOfServiceView';
 import { RefreshCw, AlertCircle, Sparkles, Layers } from 'lucide-react';
 
+const getPublicPageFromUrl = (): 'privacy' | 'terms' | null => {
+  const path = window.location.pathname.toLowerCase();
+  const search = new URLSearchParams(window.location.search);
+  const pageParam = search.get('page')?.toLowerCase() || search.get('view')?.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+
+  if (path.includes('privacy') || pageParam === 'privacy' || hash === '#privacy') {
+    return 'privacy';
+  }
+  if (path.includes('terms') || pageParam === 'terms' || hash === '#terms') {
+    return 'terms';
+  }
+  return null;
+};
+
 export default function App() {
+  // Public Routing State (accessible without login for Google App Verification)
+  const [publicPage, setPublicPage] = useState<'privacy' | 'terms' | null>(getPublicPageFromUrl());
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setPublicPage(getPublicPageFromUrl());
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
+  const handleBackFromPublicPage = () => {
+    setPublicPage(null);
+    if (window.location.hash) {
+      window.location.hash = '';
+    }
+    if (window.location.search.includes('page=') || window.location.search.includes('view=')) {
+      window.history.pushState({}, '', window.location.pathname);
+    }
+    if (window.location.pathname === '/privacy' || window.location.pathname === '/terms') {
+      window.history.pushState({}, '', '/');
+    }
+  };
+
+  const handleOpenPrivacy = () => {
+    window.location.hash = '#privacy';
+    setPublicPage('privacy');
+  };
+
+  const handleOpenTerms = () => {
+    window.location.hash = '#terms';
+    setPublicPage('terms');
+  };
+
   // Auth state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // Database state
   const [users, setUsers] = useState<User[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [swaps, setSwaps] = useState<ShiftSwap[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [schedulePeriod, setSchedulePeriod] = useState<SchedulePeriod | null>(null);
+  const [groups, setGroups] = useState<DoctorGroup[]>([]);
+  const [rotationAssignments, setRotationAssignments] = useState<GroupRotationAssignment[]>([]);
 
 
   // UI state
@@ -50,10 +107,6 @@ export default function App() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
-
-  // Sync Queue state
-  const [syncQueue, setSyncQueue] = useState<SyncTask[]>([]);
-  const [isProcessingSync, setIsProcessingSync] = useState(false);
 
   // Initialize and Seed data
   useEffect(() => {
@@ -65,25 +118,16 @@ export default function App() {
       }
     };
     bootstrap();
-
-    // Check localStorage sync queue length on launch
-    setSyncQueue(getSyncQueue());
   }, []);
 
   // Sync state observer for user auth
   useEffect(() => {
     const unsubscribe = initAuth(
-      async (firebaseUser, token) => {
+      async (firebaseUser) => {
         setIsAuthLoading(true);
         try {
-          if (token) {
-            setGoogleToken(token);
-            setCachedToken(token);
-          }
-
           // Load profile or create a default one
-          const currentUsersList = await fetchUsers();
-          let profile = currentUsersList.find(u => u.id === firebaseUser.uid);
+          let profile = await fetchUserById(firebaseUser.uid);
 
           if (!profile) {
             console.log('No user profile found. Creating a default entry in Firestore.');
@@ -96,9 +140,7 @@ export default function App() {
               name: firebaseUser.displayName || 'Anonymous Doctor',
               email: userEmail,
               role: isDevAdmin ? 'admin' : 'user',
-              departmentId: 'dept-general', // default to general
               isVirtual: false,
-              googleCalendarId: 'primary',
               createdAt: new Date().toISOString()
             };
             await saveUser(profile);
@@ -109,11 +151,6 @@ export default function App() {
           // Now that user is authenticated, seed and load all database entities
           await seedInitialData();
           await loadAllData();
-
-          // Once profile is loaded, check if we have scopes & process sync queue
-          if (token) {
-            await handleTriggerQueueSync(token);
-          }
         } catch (err: any) {
           console.error('Error handling auth state change:', err);
           setErrorMessage('Could not load user profile from Firestore.');
@@ -123,7 +160,6 @@ export default function App() {
       },
       () => {
         setCurrentUser(null);
-        setGoogleToken(null);
         setIsAuthLoading(false);
       }
     );
@@ -135,31 +171,37 @@ export default function App() {
   const loadAllData = async () => {
     setIsDataLoading(true);
     try {
-      const [u, d, t, s, a, sw, h, sp] = await Promise.all([
+      const [u, t, s, a, sw, h, sp, grps, rotAsgmts] = await Promise.all([
         fetchUsers(),
-        fetchDepartments(),
         fetchShiftTemplates(),
         fetchShifts(),
         fetchAvailabilities(),
         fetchShiftSwaps(),
         fetchHolidays(),
-        fetchSchedulePeriod()
+        fetchSchedulePeriod(),
+        getDoctorGroups(),
+        getRotationAssignments('current')
       ]);
 
       setUsers(u);
-      setDepartments(d);
       setTemplates(t);
       setShifts(s);
       setAvailabilities(a);
       setSwaps(sw);
       setHolidays(h);
       setSchedulePeriod(sp);
+      setGroups(grps);
+      setRotationAssignments(rotAsgmts);
 
       setErrorMessage('');
 
     } catch (err: any) {
       console.error('Error loading Firestore collections:', err);
-      setErrorMessage('Database connection slow. Attempting reconnection...');
+      if (err?.code === 'permission-denied' || err?.message?.includes('permission')) {
+        setErrorMessage('Database access denied (Missing or insufficient permissions). Please check Firestore rules.');
+      } else {
+        setErrorMessage('Database connection slow. Attempting reconnection...');
+      }
     } finally {
       setIsDataLoading(false);
     }
@@ -171,8 +213,6 @@ export default function App() {
     try {
       const result = await googleSignIn();
       if (result) {
-        setGoogleToken(result.accessToken);
-        setCachedToken(result.accessToken);
         // Reload directories
         await loadAllData();
       }
@@ -189,70 +229,40 @@ export default function App() {
     try {
       await googleLogout();
       setCurrentUser(null);
-      setGoogleToken(null);
     } catch (err: any) {
       console.error(err);
     }
   };
 
-  // Google Calendar Sync Queue Trigger
-  const handleTriggerQueueSync = async (overrideToken?: string) => {
-    const token = overrideToken || googleToken;
-    if (!token) {
-      // Prompt user to link calendar
-      setInfoMessage('Please click "Authorize Calendar Sync" in your Settings tab to sync pending duty schedules.');
-      setTimeout(() => setInfoMessage(''), 6000);
-      return;
-    }
-
-    setIsProcessingSync(true);
+  // Role Change handler
+  const handleRoleChange = async (newRole: Role) => {
+    if (!currentUser) return;
     try {
-      const { successCount, failureCount } = await processSyncQueue(
-        token,
-        shifts,
-        templates,
-        departments,
-        (taskId) => {
-          console.log(`Sync task ${taskId} finished successfully.`);
-        },
-        (taskId, err) => {
-          console.error(`Sync task ${taskId} failed:`, err);
-        }
-      );
-
-      setSyncQueue(getSyncQueue());
-      if (successCount > 0) {
-        setInfoMessage(`Calendar synchronized: updated ${successCount} duty items.`);
-        setTimeout(() => setInfoMessage(''), 5000);
-      }
-    } catch (err) {
-      console.error('Queue processing crashed:', err);
-    } finally {
-      setIsProcessingSync(false);
+      await updateUserRole(currentUser.id, newRole);
+      setCurrentUser({ ...currentUser, role: newRole });
+    } catch (err: any) {
+      console.error('Error updating role:', err);
+      setErrorMessage('Could not update user role.');
     }
   };
 
-  // Queue a new Google Calendar Sync task from child scheduler dashboard
-  const handleQueueCalendarSync = (task: { shiftId: string; action: 'create' | 'update' | 'delete'; calendarId: string }) => {
-    addToSyncQueue(task);
-    setSyncQueue(getSyncQueue());
+  // Render public Privacy and Terms pages directly if requested via URL, hash, or state
+  if (publicPage === 'privacy') {
+    return <PrivacyPolicyView onBack={handleBackFromPublicPage} />;
+  }
 
-    // Auto trigger if token exists
-    if (googleToken) {
-      handleTriggerQueueSync();
-    } else {
-      setInfoMessage('Shift published and queued. Sign in to Google Calendar in Settings tab to authorize automatic synchronizations.');
-      setTimeout(() => setInfoMessage(''), 8000);
-    }
-  };
+  if (publicPage === 'terms') {
+    return <TermsOfServiceView onBack={handleBackFromPublicPage} />;
+  }
 
   if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-transparent flex flex-col items-center justify-center font-sans text-white relative">
         <div className="mesh-bg" />
         <div className="glass border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl relative">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 mb-4 animate-spin">
-            <RefreshCw className="h-6 w-6" />
+          <div className="relative mb-4">
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 blur opacity-75 animate-pulse" />
+            <img src="/logo-nobg.png" alt="DutyFlow Loading" className="relative h-14 w-14 object-contain animate-bounce" />
           </div>
           <div className="text-sm font-bold text-slate-100 font-display">Initializing DutyFlow Platform</div>
           <div className="text-[11px] text-slate-400 mt-1 font-mono">Synchronizing rosters & directories...</div>
@@ -263,7 +273,15 @@ export default function App() {
 
   // If not logged in, show elegant medical themed sign-in
   if (!currentUser) {
-    return <LoginView onLogin={handleLogin} isLoading={isAuthLoading} />;
+    return (
+      <LoginView
+        onLogin={handleLogin}
+        isLoading={isAuthLoading}
+        errorMessage={errorMessage}
+        onOpenPrivacy={handleOpenPrivacy}
+        onOpenTerms={handleOpenTerms}
+      />
+    );
   }
 
   // Navigation tab configurations based on user permissions
@@ -273,10 +291,11 @@ export default function App() {
         <AdminDashboard
           currentUser={currentUser}
           users={users}
-          departments={departments}
           templates={templates}
           holidays={holidays}
           schedulePeriod={schedulePeriod}
+          groups={groups}
+          rotationAssignments={rotationAssignments}
           onRefresh={loadAllData}
         />
       );
@@ -287,14 +306,28 @@ export default function App() {
         <SchedulerDashboard
           currentUser={currentUser}
           users={users}
-          departments={departments}
           templates={templates}
           shifts={shifts}
           availabilities={availabilities}
           holidays={holidays}
           schedulePeriod={schedulePeriod}
+          groups={groups}
+          rotationAssignments={rotationAssignments}
           onRefresh={loadAllData}
-          onQueueSync={handleQueueCalendarSync}
+        />
+      );
+    }
+
+    if (activeTab === 'pooled') {
+      return (
+        <PooledShiftsDashboard
+          currentUser={currentUser}
+          users={users}
+          templates={templates}
+          shifts={shifts}
+          availabilities={availabilities}
+          holidays={holidays}
+          onRefresh={loadAllData}
         />
       );
     }
@@ -304,17 +337,19 @@ export default function App() {
       <UserDashboard
         currentUser={currentUser}
         users={users}
-        departments={departments}
         templates={templates}
         shifts={shifts}
         availabilities={availabilities}
         swaps={swaps}
         holidays={holidays}
-        googleAccessToken={googleToken}
         schedulePeriod={schedulePeriod}
+        groups={groups}
+        rotationAssignments={rotationAssignments}
         onRefresh={loadAllData}
-        onTriggerCalendarSync={handleLogin} // Reuse OAuth popup
+        onRoleChange={handleRoleChange}
         activeTab={activeTab}
+        onOpenPrivacy={handleOpenPrivacy}
+        onOpenTerms={handleOpenTerms}
       />
     );
   };
@@ -325,12 +360,12 @@ export default function App() {
       <div className="mesh-bg" />
       <Navbar
         user={currentUser}
-        syncQueueLength={syncQueue.length}
-        isProcessingSync={isProcessingSync}
-        onTriggerSync={() => handleTriggerQueueSync()}
         onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onRoleChange={handleRoleChange}
+        onOpenPrivacy={handleOpenPrivacy}
+        onOpenTerms={handleOpenTerms}
       />
 
       {/* Main Content Area */}

@@ -22,10 +22,6 @@
           "enum": ["admin", "scheduler", "user"],
           "description": "Access level of the user"
         },
-        "departmentId": {
-          "type": "string",
-          "description": "Assigned department ID"
-        },
         "isVirtual": {
           "type": "boolean",
           "description": "Whether the user is a virtual user (no actual login/calendar)"
@@ -40,26 +36,6 @@
         }
       },
       "required": ["id", "name", "role", "isVirtual", "createdAt"]
-    },
-    "Department": {
-      "title": "Department",
-      "description": "Hospital department/ward",
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique department identifier"
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the department"
-        },
-        "color": {
-          "type": "string",
-          "description": "Hex color code or Tailwind color class for visual identification"
-        }
-      },
-      "required": ["id", "name", "color"]
     },
     "ShiftTemplate": {
       "title": "ShiftTemplate",
@@ -85,13 +61,9 @@
         "color": {
           "type": "string",
           "description": "Hex or theme color for the shift representation"
-        },
-        "departmentId": {
-          "type": "string",
-          "description": "Department this template belongs to"
         }
       },
-      "required": ["id", "name", "startTime", "endTime", "color", "departmentId"]
+      "required": ["id", "name", "startTime", "endTime", "color"]
     },
     "Shift": {
       "title": "Shift",
@@ -119,10 +91,6 @@
           "enum": ["draft", "published"],
           "description": "Schedule status"
         },
-        "departmentId": {
-          "type": "string",
-          "description": "Department ID where the shift occurs"
-        },
         "assignedBy": {
           "type": "string",
           "description": "User ID who assigned this shift"
@@ -132,7 +100,7 @@
           "description": "Synced Google Calendar Event ID for real users"
         }
       },
-      "required": ["id", "userId", "date", "templateId", "status", "departmentId", "assignedBy"]
+      "required": ["id", "userId", "date", "templateId", "status", "assignedBy"]
     },
     "Availability": {
       "title": "Availability",
@@ -249,10 +217,6 @@
     "users": {
       "schema": "User",
       "description": "Collection of hospital users and metadata"
-    },
-    "departments": {
-      "schema": "Department",
-      "description": "Collection of hospital departments and wards"
     },
     "shiftTemplates": {
       "schema": "ShiftTemplate",

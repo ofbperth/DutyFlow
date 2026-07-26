@@ -1,11 +1,11 @@
 {
-  "projectId": "project-9be90dbe-9483-4923-b21",
-  "appId": "1:538206531261:web:6f9f21c01e26a9b53ed1d4",
-  "apiKey": "AIzaSyBhvgM0bJw3tTi8EjWSyQs3r6YLLWjIS3w",
-  "authDomain": "project-9be90dbe-9483-4923-b21.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-dutyflow-413a1165-57ea-42a2-b922-8766fc9a529f",
-  "storageBucket": "project-9be90dbe-9483-4923-b21.firebasestorage.app",
-  "messagingSenderId": "538206531261",
+  "projectId": "dutyflow-502613",
+  "appId": "1:709406631695:web:1dd26312e533074520407a",
+  "apiKey": "AIzaSyB16RVqxpat9jjQFVTBcvu7NgEziJR4094",
+  "authDomain": "dutyflow-502613.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "dutyflow-502613.firebasestorage.app",
+  "messagingSenderId": "709406631695",
   "measurementId": "",
-  "oAuthClientId": "538206531261-oj33br92u814c3s3ilpjv6ah05hpb538.apps.googleusercontent.com"
+  "oAuthClientId": ""
 }

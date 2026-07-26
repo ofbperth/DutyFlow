@@ -5,16 +5,8 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  departmentId: string;
   isVirtual: boolean;
-  googleCalendarId: string | null;
   createdAt: string;
-}
-
-export interface Department {
-  id: string;
-  name: string;
-  color: string; // Tailwind bg-class or hex, we will use slate/teal/emerald color names
 }
 
 export interface ShiftTemplate {
@@ -23,7 +15,8 @@ export interface ShiftTemplate {
   startTime: string; // HH:MM
   endTime: string; // HH:MM
   color: string; // Tailwind background color class
-  departmentId: string;
+  groupId: string;
+  isPooled?: boolean;
 }
 
 export type ShiftStatus = 'draft' | 'published';
@@ -34,9 +27,9 @@ export interface Shift {
   date: string; // YYYY-MM-DD
   templateId: string;
   status: ShiftStatus;
-  departmentId: string;
   assignedBy: string;
-  googleCalendarEventId?: string | null;
+  notes?: string;
+  targetGroupId?: string; // Target department/group for cross-group shifts
 }
 
 export type AvailabilityStatus = 'available' | 'unavailable' | 'preferred';
@@ -73,3 +66,48 @@ export interface SchedulePeriod {
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
 }
+
+export interface DoctorGroup {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  weekdayShiftTime?: string; // e.g. "17:00-07:00"
+  holidayShiftTime?: string; // e.g. "10:00-07:00"
+  isUniversal?: boolean;
+}
+
+export interface GroupRotationAssignment {
+  id: string;
+  periodId: string;
+  groupId: string;
+  userId: string;
+  displayOrder?: number;
+}
+
+// Cross-group shift permission rules: targetGroupId -> list of allowed homeGroupIds
+export const CROSS_GROUP_RULES: Record<string, string[]> = {
+  'group-1650': ['group-nvmdown', 'group-nvm23-asd11'],
+  'group-icu8s': ['group-rcu'],
+  'group-icu8n': ['group-ccu'],
+  'group-icu3': ['group-nvm23-asd11']
+};
+
+export const getAllowedTargetGroupIdsForHomeGroup = (homeGroupId: string): string[] => {
+  const allowed: string[] = ['group-universal', 'group-pooled'];
+  if (homeGroupId === 'group-1650' || homeGroupId === 'group-nvmdown' || homeGroupId === 'group-nvm23-asd11') {
+    allowed.push('group-1650');
+  }
+  if (homeGroupId === 'group-nvm23-asd11' || homeGroupId === 'group-icu3') {
+    allowed.push('group-icu3');
+  }
+  if (homeGroupId === 'group-rcu' || homeGroupId === 'group-icu8s') {
+    allowed.push('group-icu8s');
+  }
+  if (homeGroupId === 'group-ccu' || homeGroupId === 'group-icu8n') {
+    allowed.push('group-icu8n');
+  }
+  return allowed;
+};
+
+

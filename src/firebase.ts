@@ -22,7 +22,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { User, Department, ShiftTemplate, Shift, Availability, ShiftSwap, Holiday, SchedulePeriod } from './types';
+import { User, Role, ShiftTemplate, Shift, Availability, ShiftSwap, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment } from './types';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -31,43 +31,28 @@ export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId 
 
 // Configure Google Auth Provider
 const provider = new GoogleAuthProvider();
-provider.addScope('https://www.googleapis.com/auth/calendar');
-provider.addScope('https://www.googleapis.com/auth/calendar.events');
-
-// In-memory token cache
-let cachedAccessToken: string | null = null;
-let isSigningIn = false;
-
 // Listen to Auth State
 export const initAuth = (
-  onAuthSuccess?: (user: FirebaseUser, token: string | null) => void,
+  onAuthSuccess?: (user: FirebaseUser) => void,
   onAuthFailure?: () => void
 ) => {
   return onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
     if (user) {
       if (onAuthSuccess) {
-        onAuthSuccess(user, cachedAccessToken);
+        onAuthSuccess(user);
       }
     } else {
-      cachedAccessToken = null;
       if (onAuthFailure) onAuthFailure();
     }
   });
 };
 
 // Google Sign-In
-export const googleSignIn = async (): Promise<{ user: FirebaseUser; accessToken: string } | null> => {
+export const googleSignIn = async (): Promise<{ user: FirebaseUser } | null> => {
   try {
     isSigningIn = true;
     const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      console.warn('Could not get custom Google Calendar access token immediately from Firebase Auth result.');
-      // Sometimes standard auth doesn't pack it or token is already in memory
-    } else {
-      cachedAccessToken = credential.accessToken;
-    }
-    return { user: result.user, accessToken: cachedAccessToken || '' };
+    return { user: result.user };
   } catch (error) {
     console.error('Sign in error:', error);
     throw error;
@@ -76,19 +61,9 @@ export const googleSignIn = async (): Promise<{ user: FirebaseUser; accessToken:
   }
 };
 
-// Set token manually (e.g. if we get it from credential or local memory fallback)
-export const setCachedToken = (token: string) => {
-  cachedAccessToken = token;
-};
-
-export const getAccessToken = async (): Promise<string | null> => {
-  return cachedAccessToken;
-};
-
 // Logout
 export const googleLogout = async () => {
   await signOut(auth);
-  cachedAccessToken = null;
 };
 
 // Validate Firestore Connection
@@ -96,9 +71,11 @@ export const testFirestoreConnection = async () => {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error: any) {
+    console.error("Firestore connection test failed:", error);
     if (error?.message?.includes('offline')) {
       console.error("Please check your Firebase configuration: Firestore client is offline.");
     }
+    throw error;
   }
 };
 
@@ -111,30 +88,54 @@ export const fetchUsers = async (): Promise<User[]> => {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 };
 
+export const fetchUserById = async (userId: string): Promise<User | null> => {
+  const snap = await getDoc(doc(db, 'users', userId));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as User) : null;
+};
+
+export const updateUserGroupAssignment = async (userId: string, periodId: string, groupId: string): Promise<void> => {
+  // Try to find if user already has an assignment for this period
+  const q = query(collection(db, 'rotationAssignments'), where('periodId', '==', periodId), where('userId', '==', userId));
+  const snap = await getDocs(q);
+  
+  if (!snap.empty) {
+    // Update existing
+    const existingDoc = snap.docs[0];
+    await updateDoc(existingDoc.ref, { groupId });
+  } else {
+    // Create new
+    const newId = `rot-${userId}-${periodId}`;
+    const assignment: GroupRotationAssignment = {
+      id: newId,
+      periodId,
+      groupId,
+      userId,
+      displayOrder: 0
+    };
+    await setDoc(doc(db, 'rotationAssignments', newId), assignment);
+  }
+};
+
 export const saveUser = async (user: User): Promise<void> => {
   await setDoc(doc(db, 'users', user.id), user);
+  // Auto-assign to 'unassigned' if no group assignment exists for 'current' period
+  const assignments = await getRotationAssignments('current');
+  if (!assignments.some(a => a.userId === user.id)) {
+    await updateUserGroupAssignment(user.id, 'current', 'unassigned');
+  }
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<void> => {
   await updateDoc(doc(db, 'users', userId), data);
 };
 
+export const updateUserRole = async (userId: string, newRole: Role): Promise<User | null> => {
+  await updateDoc(doc(db, 'users', userId), { role: newRole });
+  return fetchUserById(userId);
+};
+
 export const deleteUser = async (userId: string): Promise<void> => {
   await deleteDoc(doc(db, 'users', userId));
-};
-
-// Departments
-export const fetchDepartments = async (): Promise<Department[]> => {
-  const snap = await getDocs(collection(db, 'departments'));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Department));
-};
-
-export const saveDepartment = async (dept: Department): Promise<void> => {
-  await setDoc(doc(db, 'departments', dept.id), dept);
-};
-
-export const deleteDepartment = async (id: string): Promise<void> => {
-  await deleteDoc(doc(db, 'departments', id));
 };
 
 // Shift Templates
@@ -228,31 +229,144 @@ export const saveSchedulePeriod = async (period: SchedulePeriod): Promise<void> 
 };
 
 
+// Doctor Groups
+export const getDoctorGroups = async (): Promise<DoctorGroup[]> => {
+  const snap = await getDocs(collection(db, 'doctorGroups'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as DoctorGroup));
+};
+
+export const saveDoctorGroup = async (group: DoctorGroup): Promise<void> => {
+  await setDoc(doc(db, 'doctorGroups', group.id), group);
+};
+
+export const deleteDoctorGroup = async (id: string): Promise<void> => {
+  const q = query(collection(db, 'rotationAssignments'), where('groupId', '==', id));
+  const snap = await getDocs(q);
+  const promises = snap.docs.map(d => deleteDoc(d.ref));
+  await Promise.all(promises);
+  await deleteDoc(doc(db, 'doctorGroups', id));
+};
+
+// Rotation Assignments
+export const getRotationAssignments = async (periodId: string): Promise<GroupRotationAssignment[]> => {
+  const q = query(collection(db, 'rotationAssignments'), where('periodId', '==', periodId));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as GroupRotationAssignment));
+};
+
+export const saveRotationAssignments = async (assignments: GroupRotationAssignment[]): Promise<void> => {
+  const promises = assignments.map(a => setDoc(doc(db, 'rotationAssignments', a.id), a));
+  await Promise.all(promises);
+};
+
+export const deleteRotationAssignment = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'rotationAssignments', id));
+};
+
+// Double Shift Check
+export const checkDoubleShift = (shifts: Shift[], userId: string, date: string, templateId?: string, templates?: ShiftTemplate[]): boolean => {
+  if (!templateId || !templates) {
+    return shifts.some(s => s.userId === userId && s.date === date);
+  }
+
+  const temp = templates.find(t => t.id === templateId);
+  if (!temp) return false;
+
+  const getShiftTimeRange = (shiftDate: string, t: ShiftTemplate) => {
+    const [sy, sm, sd] = shiftDate.split('-').map(Number);
+    const [startH, startM] = t.startTime.split(':').map(Number);
+    const [endH, endM] = t.endTime.split(':').map(Number);
+    
+    const startObj = new Date(sy, sm - 1, sd, startH, startM);
+    const endObj = new Date(sy, sm - 1, sd, endH, endM);
+    
+    if (t.startTime > t.endTime) {
+      endObj.setDate(endObj.getDate() + 1);
+    }
+    return { start: startObj, end: endObj };
+  };
+
+  const newShiftRange = getShiftTimeRange(date, temp);
+  
+  // Pre-filter shifts to +/- 1 day
+  const [dy, dm, dd] = date.split('-').map(Number);
+  const targetDateObj = new Date(dy, dm - 1, dd);
+  
+  const prevDateObj = new Date(targetDateObj);
+  prevDateObj.setDate(prevDateObj.getDate() - 1);
+  const nextDateObj = new Date(targetDateObj);
+  nextDateObj.setDate(nextDateObj.getDate() + 1);
+
+  const formatD = (d: Date) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const targetStr = date;
+  const prevStr = formatD(prevDateObj);
+  const nextStr = formatD(nextDateObj);
+
+  const userShifts = shifts.filter(s => s.userId === userId && (s.date === targetStr || s.date === prevStr || s.date === nextStr));
+
+  for (const us of userShifts) {
+    const ut = templates.find(t => t.id === us.templateId);
+    if (!ut) continue;
+    
+    const existingRange = getShiftTimeRange(us.date, ut);
+    
+    if (newShiftRange.start < existingRange.end && newShiftRange.end > existingRange.start) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 // Seeding Initial Data if Collections are Empty
 export const seedInitialData = async () => {
   try {
-    const depts = await fetchDepartments();
-    if (depts.length === 0) {
-      console.log('Seeding initial departments...');
-      const initialDepts: Department[] = [
-        { id: 'dept-general', name: 'General', color: '#3b82f6' }
-      ];
-      for (const d of initialDepts) {
-        await saveDepartment(d);
-      }
+    console.log('Seeding/updating initial doctor groups...');
+    const initialGroups: DoctorGroup[] = [
+      { id: 'group-nvm22', name: 'NVM22', color: '#ef4444', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-nvm21', name: 'NVM21', color: '#f97316', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-nvm20', name: 'NVM20', color: '#eab308', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-nvm19', name: 'NVM19', color: '#84cc16', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-nvmdown', name: 'NVMล่าง', color: '#22c55e', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-icu8n', name: 'ICU8N', color: '#10b981', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-icu8s', name: 'ICU8S', color: '#14b8a6', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-icu3', name: 'ICU3 วธ', color: '#06b6d4', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-ccu', name: 'CCU', color: '#0ea5e9', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-rcu', name: 'RCU', color: '#3b82f6', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-84-72-9', name: '84 & 72/9', color: '#6366f1', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-nvm23-asd11', name: 'NVM23 ASD11 ทองคำ', color: '#8b5cf6', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
+      { id: 'group-1650', name: 'เวร1650', color: '#a855f7' },
+      { id: 'group-saraburi', name: 'สระบุรี', color: '#ec4899', weekdayShiftTime: '16:30-08:30', holidayShiftTime: '08:30-08:30' },
+      { id: 'group-universal', name: 'Universal / General Shifts', color: '#d946ef' }
+    ];
+    for (const g of initialGroups) {
+      await saveDoctorGroup(g);
     }
 
-    const templates = await fetchShiftTemplates();
-    if (templates.length === 0) {
-      console.log('Seeding initial shift templates...');
-      const initialTemplates: ShiftTemplate[] = [
-        { id: 'temp-morning', name: 'Morning Duty', startTime: '07:00', endTime: '15:00', color: '#10b981', departmentId: 'dept-general' },
-        { id: 'temp-evening', name: 'Evening Duty', startTime: '15:00', endTime: '23:00', color: '#f97316', departmentId: 'dept-general' },
-        { id: 'temp-night', name: 'Night Cover', startTime: '23:00', endTime: '07:00', color: '#6366f1', departmentId: 'dept-general' }
-      ];
-      for (const t of initialTemplates) {
-        await saveShiftTemplate(t);
-      }
+    console.log('Seeding/updating initial shift templates...');
+    const initialTemplates: ShiftTemplate[] = [
+      { id: 'temp-group-weekday', name: 'เวรวันธรรมดา', startTime: '17:00', endTime: '07:00', color: '#3b82f6', groupId: 'group-universal' },
+      { id: 'temp-group-holiday', name: 'เวรวันหยุด', startTime: '10:00', endTime: '07:00', color: '#eab308', groupId: 'group-universal' },
+      { id: 'temp-1650-morning', name: '1650 เช้า(วันหยุด)', startTime: '07:00', endTime: '18:00', color: '#f97316', groupId: 'group-1650' },
+      { id: 'temp-1650-afternoon', name: '1650 บ่ายดึก', startTime: '18:00', endTime: '07:00', color: '#6366f1', groupId: 'group-1650' },
+      { id: 'temp-saraburi-top', name: 'เวรบน', startTime: '16:30', endTime: '08:30', color: '#ec4899', groupId: 'group-saraburi' },
+      { id: 'temp-saraburi-bottom', name: 'เวรล่าง', startTime: '16:30', endTime: '08:30', color: '#f43f5e', groupId: 'group-saraburi' },
+      { id: 'temp-saraburi-top-holiday', name: 'เวรบน(วันหยุด)', startTime: '08:30', endTime: '08:30', color: '#eab308', groupId: 'group-saraburi' },
+      { id: 'temp-saraburi-bottom-holiday', name: 'เวรล่าง(วันหยุด)', startTime: '08:30', endTime: '08:30', color: '#a855f7', groupId: 'group-saraburi' },
+      { id: 'temp-icu8s-shift', name: 'เวร ICU8S', startTime: '17:00', endTime: '07:00', color: '#14b8a6', groupId: 'group-icu8s' },
+      { id: 'temp-icu8n-shift', name: 'เวร ICU8N', startTime: '17:00', endTime: '07:00', color: '#10b981', groupId: 'group-icu8n' },
+      { id: 'temp-icu3-shift', name: 'เวร ICU3 วธ', startTime: '17:00', endTime: '07:00', color: '#06b6d4', groupId: 'group-icu3' },
+      { id: 'temp-uni-blood', name: 'รับบริจาคเลือด', startTime: '07:00', endTime: '18:00', color: '#ef4444', isPooled: true, groupId: 'group-pooled' },
+      { id: 'temp-uni-morning', name: 'เวรคอกเช้า', startTime: '06:00', endTime: '12:00', color: '#f59e0b', isPooled: true, groupId: 'group-pooled' },
+      { id: 'temp-uni-noon', name: 'เวรคอกเที่ยง', startTime: '12:00', endTime: '18:00', color: '#84cc16', isPooled: true, groupId: 'group-pooled' },
+      { id: 'temp-uni-evening', name: 'เวรคอกเย็น', startTime: '18:00', endTime: '24:00', color: '#10b981', isPooled: true, groupId: 'group-pooled' },
+      { id: 'temp-uni-night', name: 'เวรคอกดึก', startTime: '00:00', endTime: '06:00', color: '#06b6d4', isPooled: true, groupId: 'group-pooled' },
+      { id: 'temp-uni-nightdown', name: 'เวรคอกดึกดาวน์', startTime: '00:00', endTime: '08:00', color: '#3b82f6', isPooled: true, groupId: 'group-pooled' }
+    ];
+    for (const t of initialTemplates) {
+      await saveShiftTemplate(t);
     }
 
     const hols = await fetchHolidays();
@@ -280,8 +394,49 @@ export const seedInitialData = async () => {
         endDate: '2026-07-14'
       });
     }
+    
+    // Seed rotation assignments for current period if none exist
+    const assignments = await getRotationAssignments('current');
+    if (assignments.length === 0) {
+      console.log('Seeding initial rotation assignments...');
+      let users = await fetchUsers();
+      
+      const groupIds = [
+        'group-nvm22', 'group-nvm21', 'group-nvm20', 'group-nvm19', 'group-nvmdown', 
+        'group-icu8n', 'group-icu8s', 'group-icu3', 'group-ccu', 'group-rcu', 
+        'group-84-72-9', 'group-nvm23-asd11', 'group-1650'
+      ];
+
+      if (users.length === 0) {
+        console.log('No users found. Seeding virtual demo doctors...');
+        // Create one demo doctor for each group
+        for (let i = 0; i < groupIds.length; i++) {
+          const demoUser: User = {
+            id: `demo-doc-${i+1}`,
+            name: `Dr. Demo ${i+1}`,
+            email: `demo${i+1}@hospital.local`,
+            role: 'user',
+            isVirtual: true,
+            createdAt: new Date().toISOString()
+          };
+          await saveUser(demoUser); // This will also auto-assign to 'unassigned' because assignments list we fetched earlier is empty in DB, but we will overwrite it below
+        }
+        users = await fetchUsers(); // Re-fetch
+      }
+
+      if (users.length > 0) {
+        const newAssignments: GroupRotationAssignment[] = [];
+        for (let index = 0; index < users.length; index++) {
+          const u = users[index];
+          const groupId = groupIds[index % groupIds.length];
+          // use updateUserGroupAssignment to ensure it overwrites the 'unassigned' one created by saveUser
+          await updateUserGroupAssignment(u.id, 'current', groupId);
+        }
+      }
+    }
 
   } catch (err) {
     console.error('Error seeding initial data:', err);
   }
 };
+
