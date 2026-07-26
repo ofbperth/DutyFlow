@@ -48,6 +48,7 @@ export const initAuth = (
 };
 
 // Google Sign-In
+let isSigningIn = false;
 export const googleSignIn = async (): Promise<{ user: FirebaseUser } | null> => {
   try {
     isSigningIn = true;
