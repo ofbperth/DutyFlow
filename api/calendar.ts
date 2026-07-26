@@ -1,5 +1,9 @@
-const PROJECT_ID = 'dutyflow-502613';
-const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || '(default)');
 
 // Helper to format Date to YYYYMMDDTHHMMSS (Floating Local Time for iCal)
 const formatICSDateLocal = (dateStr: string, timeStr: string): string => {
@@ -13,26 +17,6 @@ const getNextDayDateStr = (dateStr: string): string => {
   const d = new Date(`${dateStr}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().split('T')[0];
-};
-
-// Helper to extract fields from Firestore REST API document format
-const parseFirestoreDoc = (doc: any) => {
-  if (!doc || !doc.fields) return null;
-  const fields = doc.fields;
-  const result: Record<string, any> = {
-    id: doc.name ? doc.name.split('/').pop() : ''
-  };
-
-  for (const key of Object.keys(fields)) {
-    const val = fields[key];
-    if (val.stringValue !== undefined) result[key] = val.stringValue;
-    else if (val.integerValue !== undefined) result[key] = Number(val.integerValue);
-    else if (val.doubleValue !== undefined) result[key] = Number(val.doubleValue);
-    else if (val.booleanValue !== undefined) result[key] = val.booleanValue;
-    else if (val.timestampValue !== undefined) result[key] = val.timestampValue;
-    else if (val.nullValue !== undefined) result[key] = null;
-  }
-  return result;
 };
 
 export default async function handler(req: any, res: any) {
@@ -52,66 +36,22 @@ export default async function handler(req: any, res: any) {
 
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Query shifts specifically for this userId using Firestore REST :runQuery
-    const queryBody = {
-      structuredQuery: {
-        from: [{ collectionId: 'shifts' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'userId' },
-            op: 'EQUAL',
-            value: { stringValue: userId }
-          }
-        }
-      }
-    };
+    // Fetch user's published shifts, templates, and groups via official Firebase SDK
+    const shiftsQuery = query(
+      collection(db, 'shifts'),
+      where('userId', '==', userId),
+      where('status', '==', 'published')
+    );
 
-    const [shiftsRes, templatesRes, groupsRes] = await Promise.all([
-      fetch(`${FIRESTORE_BASE}:runQuery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(queryBody)
-      }).catch(() => null),
-      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000`).catch(() => null),
-      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000`).catch(() => null)
+    const [shiftsSnap, templatesSnap, groupsSnap] = await Promise.all([
+      getDocs(shiftsQuery).catch(() => null),
+      getDocs(collection(db, 'shiftTemplates')).catch(() => null),
+      getDocs(collection(db, 'doctorGroups')).catch(() => null)
     ]);
 
-    const shifts: any[] = [];
-    if (shiftsRes && shiftsRes.ok) {
-      const data = await shiftsRes.json();
-      if (Array.isArray(data)) {
-        data.forEach((item: any) => {
-          if (item.document) {
-            const parsed = parseFirestoreDoc(item.document);
-            if (parsed && parsed.status && parsed.status.toLowerCase() === 'published') {
-              shifts.push(parsed);
-            }
-          }
-        });
-      }
-    }
-
-    const templates: any[] = [];
-    if (templatesRes && templatesRes.ok) {
-      const data = await templatesRes.json();
-      if (data.documents && Array.isArray(data.documents)) {
-        data.documents.forEach((d: any) => {
-          const parsed = parseFirestoreDoc(d);
-          if (parsed) templates.push(parsed);
-        });
-      }
-    }
-
-    const doctorGroups: any[] = [];
-    if (groupsRes && groupsRes.ok) {
-      const data = await groupsRes.json();
-      if (data.documents && Array.isArray(data.documents)) {
-        data.documents.forEach((d: any) => {
-          const parsed = parseFirestoreDoc(d);
-          if (parsed) doctorGroups.push(parsed);
-        });
-      }
-    }
+    const shifts: any[] = shiftsSnap ? shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+    const templates: any[] = templatesSnap ? templatesSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+    const doctorGroups: any[] = groupsSnap ? groupsSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
 
     // Generate iCal feed string using Floating Local Time
     let ics = '';
