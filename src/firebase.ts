@@ -436,6 +436,39 @@ export const seedInitialData = async () => {
       }
     }
 
+    const existingShifts = await fetchShifts();
+    if (existingShifts.length === 0) {
+      console.log('Seeding initial published duty shifts...');
+      const users = await fetchUsers();
+      const templates = await fetchShiftTemplates();
+      if (users.length > 0 && templates.length > 0) {
+        const sampleShifts: Shift[] = [];
+        users.forEach((u, idx) => {
+          sampleShifts.push({
+            id: `shift-seed-${u.id}-1`,
+            userId: u.id,
+            date: '2026-07-28',
+            templateId: templates[idx % templates.length].id,
+            status: 'published',
+            assignedBy: 'System Admin',
+            notes: 'Scheduled Clinical Rotation'
+          });
+          sampleShifts.push({
+            id: `shift-seed-${u.id}-2`,
+            userId: u.id,
+            date: '2026-07-30',
+            templateId: templates[(idx + 1) % templates.length].id,
+            status: 'published',
+            assignedBy: 'System Admin',
+            notes: 'Scheduled On-Call Shift'
+          });
+        });
+        for (const s of sampleShifts) {
+          await saveShift(s);
+        }
+      }
+    }
+
   } catch (err) {
     console.error('Error seeding initial data:', err);
   }
