@@ -5,6 +5,10 @@
       "destination": "https://dutyflow-502613.firebaseapp.com/__/auth/$1"
     },
     {
+      "source": "/api/calendar/(.*)",
+      "destination": "/api/calendar?userId=$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -77,7 +77,8 @@ export const downloadICSFile = (filename: string, icsContent: string): void => {
 
 export const getICalFeedUrl = (userId: string): string => {
   const host = typeof window !== 'undefined' ? window.location.host : 'localhost';
-  return `webcal://${host}/api/calendar/${userId}.ics`;
+  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https:' : 'http:';
+  return `${protocol}//${host}/api/calendar/${userId}.ics`;
 };
 
 export const getGoogleCalendarSubscribeUrl = (feedUrl: string): string => {
