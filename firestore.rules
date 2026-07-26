@@ -30,7 +30,7 @@ service cloud.firestore {
 
     // 1. Users collection
     match /users/{userId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (
         isAdmin() ||
         (isScheduler() && request.resource.data.role == 'user') ||
@@ -46,7 +46,7 @@ service cloud.firestore {
 
     // 3. Shift Templates collection
     match /shiftTemplates/{templateId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isScheduler();
     }
 
@@ -107,7 +107,7 @@ service cloud.firestore {
 
     // 10. Doctor Groups collection
     match /doctorGroups/{groupId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin() || isScheduler();
     }
 

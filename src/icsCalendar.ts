@@ -1,8 +1,17 @@
 import { User, Shift, ShiftTemplate, DoctorGroup } from './types';
 
-// Helper to format Date to YYYYMMDDTHHMMSSZ
-const formatICSDate = (date: Date): string => {
-  return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+// Helper to format Date to YYYYMMDDTHHMMSS (Floating Local Time)
+const formatICSDateLocal = (dateStr: string, timeStr: string): string => {
+  const cleanDate = dateStr.replace(/-/g, '');
+  const cleanTime = (timeStr || '00:00').replace(/:/g, '') + '00';
+  return `${cleanDate}T${cleanTime}`;
+};
+
+// Helper to calculate next day string for overnight shifts
+const getNextDayDateStr = (dateStr: string): string => {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().split('T')[0];
 };
 
 export const generateICalendarFeed = (user: User, shifts: Shift[], templates: ShiftTemplate[], doctorGroups: DoctorGroup[]): string => {
@@ -13,9 +22,9 @@ export const generateICalendarFeed = (user: User, shifts: Shift[], templates: Sh
   ics += 'CALSCALE:GREGORIAN\r\n';
   ics += 'METHOD:PUBLISH\r\n';
   ics += `X-WR-CALNAME:DutyFlow: ${user.name}\r\n`;
+  ics += 'X-WR-TIMEZONE:Asia/Bangkok\r\n';
   
-  const now = new Date();
-  const dtstamp = formatICSDate(now);
+  const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
   shifts.filter(s => s.status === 'published').forEach(shift => {
     const template = templates.find(t => t.id === shift.templateId);
@@ -23,30 +32,29 @@ export const generateICalendarFeed = (user: User, shifts: Shift[], templates: Sh
 
     const group = doctorGroups.find(g => g.id === (shift.targetGroupId || template.groupId));
 
-    const [startHour, startMin] = template.startTime.split(':').map(Number);
-    const [endHour, endMin] = template.endTime.split(':').map(Number);
+    const startTime = template.startTime || '08:00';
+    const endTime = template.endTime || '16:00';
 
-    const startDate = new Date(`${shift.date}T00:00:00`);
-    startDate.setHours(startHour, startMin, 0, 0);
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
 
-    const endDate = new Date(`${shift.date}T00:00:00`);
-    endDate.setHours(endHour, endMin, 0, 0);
-
-    if (endDate <= startDate) {
-      // Crosses midnight
-      endDate.setDate(endDate.getDate() + 1);
+    let endDateStr = shift.date;
+    if (endHour < startHour || (endHour === startHour && endMin <= startMin)) {
+      endDateStr = getNextDayDateStr(shift.date);
     }
 
+    const dtStartStr = formatICSDateLocal(shift.date, startTime);
+    const dtEndStr = formatICSDateLocal(endDateStr, endTime);
     const uid = `${shift.id}@dutyflow.com`;
 
     ics += 'BEGIN:VEVENT\r\n';
     ics += `UID:${uid}\r\n`;
     ics += `DTSTAMP:${dtstamp}\r\n`;
-    ics += `DTSTART:${formatICSDate(startDate)}\r\n`;
-    ics += `DTEND:${formatICSDate(endDate)}\r\n`;
+    ics += `DTSTART:${dtStartStr}\r\n`;
+    ics += `DTEND:${dtEndStr}\r\n`;
     ics += `SUMMARY:🩺 DutyFlow: ${template.name}\r\n`;
     
-    if (group) {
+    if (group && group.name) {
       ics += `LOCATION:${group.name}\r\n`;
     }
     
