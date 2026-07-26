@@ -1,9 +1,6 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || '(default)');
+const PROJECT_ID = 'dutyflow-502613';
+const API_KEY = 'AIzaSyB16RVqxpat9jjQFVTBcvu7NgEziJR4094';
+const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 // Helper to format Date to YYYYMMDDTHHMMSS (Floating Local Time for iCal)
 const formatICSDateLocal = (dateStr: string, timeStr: string): string => {
@@ -17,6 +14,26 @@ const getNextDayDateStr = (dateStr: string): string => {
   const d = new Date(`${dateStr}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().split('T')[0];
+};
+
+// Helper to extract fields from Firestore REST API document format
+const parseFirestoreDoc = (doc: any) => {
+  if (!doc || !doc.fields) return null;
+  const fields = doc.fields;
+  const result: Record<string, any> = {
+    id: doc.name ? doc.name.split('/').pop() : ''
+  };
+
+  for (const key of Object.keys(fields)) {
+    const val = fields[key];
+    if (val.stringValue !== undefined) result[key] = val.stringValue;
+    else if (val.integerValue !== undefined) result[key] = Number(val.integerValue);
+    else if (val.doubleValue !== undefined) result[key] = Number(val.doubleValue);
+    else if (val.booleanValue !== undefined) result[key] = val.booleanValue;
+    else if (val.timestampValue !== undefined) result[key] = val.timestampValue;
+    else if (val.nullValue !== undefined) result[key] = null;
+  }
+  return result;
 };
 
 export default async function handler(req: any, res: any) {
@@ -36,29 +53,62 @@ export default async function handler(req: any, res: any) {
 
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Fetch all shifts, templates, and groups without composite index requirement
-    const [shiftsSnap, templatesSnap, groupsSnap] = await Promise.all([
-      getDocs(collection(db, 'shifts')).catch(err => {
-        console.error('Error fetching shifts collection:', err);
+    // Run structured query to fetch all shifts via REST API with API key
+    const queryBody = {
+      structuredQuery: {
+        from: [{ collectionId: 'shifts' }]
+      }
+    };
+
+    const [shiftsRes, templatesRes, groupsRes] = await Promise.all([
+      fetch(`${FIRESTORE_BASE}:runQuery?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(queryBody)
+      }).catch(err => {
+        console.error('Shifts fetch error:', err);
         return null;
       }),
-      getDocs(collection(db, 'shiftTemplates')).catch(err => {
-        console.error('Error fetching shiftTemplates collection:', err);
-        return null;
-      }),
-      getDocs(collection(db, 'doctorGroups')).catch(err => {
-        console.error('Error fetching doctorGroups collection:', err);
-        return null;
-      })
+      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000&key=${API_KEY}`).catch(() => null),
+      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000&key=${API_KEY}`).catch(() => null)
     ]);
 
-    const allShifts: any[] = shiftsSnap ? shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
-    const templates: any[] = templatesSnap ? templatesSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
-    const doctorGroups: any[] = groupsSnap ? groupsSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+    const allShifts: any[] = [];
+    if (shiftsRes && shiftsRes.ok) {
+      const data = await shiftsRes.json();
+      if (Array.isArray(data)) {
+        data.forEach((item: any) => {
+          if (item.document) {
+            const parsed = parseFirestoreDoc(item.document);
+            if (parsed) allShifts.push(parsed);
+          }
+        });
+      }
+    }
+
+    const templates: any[] = [];
+    if (templatesRes && templatesRes.ok) {
+      const data = await templatesRes.json();
+      if (data.documents && Array.isArray(data.documents)) {
+        data.documents.forEach((d: any) => {
+          const parsed = parseFirestoreDoc(d);
+          if (parsed) templates.push(parsed);
+        });
+      }
+    }
+
+    const doctorGroups: any[] = [];
+    if (groupsRes && groupsRes.ok) {
+      const data = await groupsRes.json();
+      if (data.documents && Array.isArray(data.documents)) {
+        data.documents.forEach((d: any) => {
+          const parsed = parseFirestoreDoc(d);
+          if (parsed) doctorGroups.push(parsed);
+        });
+      }
+    }
 
     const targetLower = userId.toLowerCase();
-    
-    // Filter shifts for target user and published status in JS memory
     const userShifts = allShifts.filter((shift: any) => {
       if (!shift || !shift.userId) return false;
       const shiftUserIdStr = shift.userId.toString().trim().toLowerCase();
@@ -66,14 +116,14 @@ export default async function handler(req: any, res: any) {
       return shiftUserIdStr === targetLower && statusStr === 'published';
     });
 
-    // Debug endpoint flag
     if (req.query.debug === 'true') {
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({
+        status: 'ok',
         searchedUserId: userId,
-        totalShiftsInDatabase: allShifts.length,
+        totalShiftsInDB: allShifts.length,
         matchedUserShiftsCount: userShifts.length,
-        matchedShifts: userShifts,
+        userShifts,
         templatesCount: templates.length,
         groupsCount: doctorGroups.length
       });
