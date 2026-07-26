@@ -15,7 +15,8 @@ import {
   ExternalLink,
   RefreshCw,
   BarChart3,
-  FileText
+  FileText,
+  Filter
 } from 'lucide-react';
 import { User, Shift, ShiftTemplate, Availability, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment, CROSS_GROUP_RULES, getAllowedTargetGroupIdsForHomeGroup } from '../types';
 import jsPDF from 'jspdf';
@@ -81,7 +82,7 @@ export default function SchedulerDashboard({
   const [addingToGroupId, setAddingToGroupId] = useState<string | null>(null);
 
   // Filter state
-  const [showOnlyInvolved, setShowOnlyInvolved] = useState(currentUser.role === 'user' || currentUser.role === 'scheduler');
+  const [showOnlyInvolved, setShowOnlyInvolved] = useState(true);
 
 
   const handleOpenShiftMenu = (shift: Shift | null) => {
@@ -605,18 +606,25 @@ export default function SchedulerDashboard({
             </div>
           </div>
 
-          {/* Toggle Involved Groups */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-slate-300 flex items-center">
-              <input 
-                type="checkbox" 
-                checked={showOnlyInvolved} 
-                onChange={(e) => setShowOnlyInvolved(e.target.checked)}
-                className="mr-2"
-              />
-              Show Only My Involved Groups
-            </label>
-          </div>
+          {/* Toggle Involved Groups Button */}
+          <button
+            type="button"
+            onClick={() => setShowOnlyInvolved(!showOnlyInvolved)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none ${
+              showOnlyInvolved
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-lg shadow-emerald-500/10 hover:bg-emerald-500/30'
+                : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 hover:text-white'
+            }`}
+            id="toggle-involved-groups-btn"
+          >
+            <Filter className="h-3.5 w-3.5" />
+            <span>My Involved Groups Only</span>
+            {showOnlyInvolved && (
+              <span className="bg-emerald-500/30 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">
+                ✓ Active
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Action Buttons */}
