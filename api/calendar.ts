@@ -36,22 +36,48 @@ export default async function handler(req: any, res: any) {
 
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Fetch user's published shifts, templates, and groups via official Firebase SDK
-    const shiftsQuery = query(
-      collection(db, 'shifts'),
-      where('userId', '==', userId),
-      where('status', '==', 'published')
-    );
-
+    // Fetch all shifts, templates, and groups without composite index requirement
     const [shiftsSnap, templatesSnap, groupsSnap] = await Promise.all([
-      getDocs(shiftsQuery).catch(() => null),
-      getDocs(collection(db, 'shiftTemplates')).catch(() => null),
-      getDocs(collection(db, 'doctorGroups')).catch(() => null)
+      getDocs(collection(db, 'shifts')).catch(err => {
+        console.error('Error fetching shifts collection:', err);
+        return null;
+      }),
+      getDocs(collection(db, 'shiftTemplates')).catch(err => {
+        console.error('Error fetching shiftTemplates collection:', err);
+        return null;
+      }),
+      getDocs(collection(db, 'doctorGroups')).catch(err => {
+        console.error('Error fetching doctorGroups collection:', err);
+        return null;
+      })
     ]);
 
-    const shifts: any[] = shiftsSnap ? shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+    const allShifts: any[] = shiftsSnap ? shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
     const templates: any[] = templatesSnap ? templatesSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
     const doctorGroups: any[] = groupsSnap ? groupsSnap.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+
+    const targetLower = userId.toLowerCase();
+    
+    // Filter shifts for target user and published status in JS memory
+    const userShifts = allShifts.filter((shift: any) => {
+      if (!shift || !shift.userId) return false;
+      const shiftUserIdStr = shift.userId.toString().trim().toLowerCase();
+      const statusStr = shift.status ? shift.status.toString().trim().toLowerCase() : 'published';
+      return shiftUserIdStr === targetLower && statusStr === 'published';
+    });
+
+    // Debug endpoint flag
+    if (req.query.debug === 'true') {
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).json({
+        searchedUserId: userId,
+        totalShiftsInDatabase: allShifts.length,
+        matchedUserShiftsCount: userShifts.length,
+        matchedShifts: userShifts,
+        templatesCount: templates.length,
+        groupsCount: doctorGroups.length
+      });
+    }
 
     // Generate iCal feed string using Floating Local Time
     let ics = '';
@@ -65,7 +91,7 @@ export default async function handler(req: any, res: any) {
 
     const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-    shifts.forEach((shift) => {
+    userShifts.forEach((shift) => {
       const template = templates.find((t) => t.id === shift.templateId);
       const templateName = template ? template.name : 'Shift';
       const startTime = template ? (template.startTime || '08:00') : '08:00';
@@ -113,6 +139,6 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('Error generating calendar feed:', err);
     res.setHeader('Content-Type', 'text/plain');
-    return res.status(500).send('Internal server error');
+    return res.status(500).send(`Internal server error: ${err.message || err}`);
   }
 }
