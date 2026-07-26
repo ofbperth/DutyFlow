@@ -37,9 +37,11 @@ const parseFirestoreDoc = (doc: any) => {
 };
 
 export default async function handler(req: any, res: any) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   try {
     // Extract userId from query or path and strip .ics extension
-    let userId = (req.query.userId as string) || '';
+    let userId = (req.query ? (req.query.userId as string) : '') || '';
     if (!userId && req.url) {
       const parts = req.url.split('?')[0].split('/');
       userId = parts[parts.length - 1] || '';
@@ -50,8 +52,6 @@ export default async function handler(req: any, res: any) {
       res.setHeader('Content-Type', 'text/plain');
       return res.status(400).send('User ID required');
     }
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
 
     // Run structured query to fetch all shifts via REST API with API key
     const queryBody = {
@@ -66,14 +66,18 @@ export default async function handler(req: any, res: any) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(queryBody)
       }).catch(err => {
-        console.error('Shifts fetch error:', err);
-        return null;
+        return { ok: false, error: String(err) } as any;
       }),
-      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000&key=${API_KEY}`).catch(() => null),
-      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000&key=${API_KEY}`).catch(() => null)
+      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000&key=${API_KEY}`).catch(err => {
+        return { ok: false, error: String(err) } as any;
+      }),
+      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000&key=${API_KEY}`).catch(err => {
+        return { ok: false, error: String(err) } as any;
+      })
     ]);
 
     const allShifts: any[] = [];
+    let shiftsError = null;
     if (shiftsRes && shiftsRes.ok) {
       const data = await shiftsRes.json();
       if (Array.isArray(data)) {
@@ -84,6 +88,8 @@ export default async function handler(req: any, res: any) {
           }
         });
       }
+    } else if (shiftsRes) {
+      shiftsError = shiftsRes.error || `Status ${shiftsRes.status}`;
     }
 
     const templates: any[] = [];
@@ -116,11 +122,12 @@ export default async function handler(req: any, res: any) {
       return shiftUserIdStr === targetLower && statusStr === 'published';
     });
 
-    if (req.query.debug === 'true') {
+    if (req.query && req.query.debug === 'true') {
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({
         status: 'ok',
         searchedUserId: userId,
+        shiftsError,
         totalShiftsInDB: allShifts.length,
         matchedUserShiftsCount: userShifts.length,
         userShifts,
@@ -188,7 +195,10 @@ export default async function handler(req: any, res: any) {
     return res.status(200).send(ics);
   } catch (err: any) {
     console.error('Error generating calendar feed:', err);
-    res.setHeader('Content-Type', 'text/plain');
-    return res.status(500).send(`Internal server error: ${err.message || err}`);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({
+      error: err?.message || String(err),
+      stack: err?.stack || ''
+    });
   }
 }
