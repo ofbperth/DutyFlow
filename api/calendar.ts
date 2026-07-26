@@ -30,20 +30,20 @@ const parseFirestoreDoc = (doc: any) => {
 
 export default async function handler(req: any, res: any) {
   try {
-    // Extract userId from query or path
+    // Extract userId from query or path and strip .ics extension
     let userId = (req.query.userId as string) || '';
     if (!userId && req.url) {
       const parts = req.url.split('?')[0].split('/');
-      const lastPart = parts[parts.length - 1];
-      if (lastPart && lastPart !== 'calendar') {
-        userId = lastPart.replace(/\.ics$/, '');
-      }
+      userId = parts[parts.length - 1] || '';
     }
+    userId = userId.replace(/\.ics$/, '').trim();
 
     if (!userId) {
       res.setHeader('Content-Type', 'text/plain');
       return res.status(400).send('User ID required');
     }
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
 
     // Fetch user, shifts, templates, and doctor groups in parallel from Firestore REST API
     const [userRes, shiftsRes, templatesRes, groupsRes] = await Promise.all([
