@@ -66,11 +66,15 @@ export default async function handler(req: any, res: any) {
       }
     };
 
-    const shiftsRes = await fetch(`${FIRESTORE_BASE}:runQuery`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(queryBody)
-    }).catch(() => null);
+    const [shiftsRes, templatesRes, groupsRes] = await Promise.all([
+      fetch(`${FIRESTORE_BASE}:runQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(queryBody)
+      }).catch(() => null),
+      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000`).catch(() => null),
+      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000`).catch(() => null)
+    ]);
 
     const shifts: any[] = [];
     if (shiftsRes && shiftsRes.ok) {
@@ -87,6 +91,28 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    const templates: any[] = [];
+    if (templatesRes && templatesRes.ok) {
+      const data = await templatesRes.json();
+      if (data.documents && Array.isArray(data.documents)) {
+        data.documents.forEach((d: any) => {
+          const parsed = parseFirestoreDoc(d);
+          if (parsed) templates.push(parsed);
+        });
+      }
+    }
+
+    const doctorGroups: any[] = [];
+    if (groupsRes && groupsRes.ok) {
+      const data = await groupsRes.json();
+      if (data.documents && Array.isArray(data.documents)) {
+        data.documents.forEach((d: any) => {
+          const parsed = parseFirestoreDoc(d);
+          if (parsed) doctorGroups.push(parsed);
+        });
+      }
+    }
+
     // Generate iCal feed string using Floating Local Time
     let ics = '';
     ics += 'BEGIN:VCALENDAR\r\n';
@@ -94,14 +120,18 @@ export default async function handler(req: any, res: any) {
     ics += 'PRODID:-//DutyFlow//DutyFlow Calendar//EN\r\n';
     ics += 'CALSCALE:GREGORIAN\r\n';
     ics += 'METHOD:PUBLISH\r\n';
-    ics += `X-WR-CALNAME:DutyFlow: Schedule Feed\r\n`;
+    ics += `X-WR-CALNAME:DutyFlow Schedule\r\n`;
     ics += 'X-WR-TIMEZONE:Asia/Bangkok\r\n';
 
     const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
     shifts.forEach((shift) => {
-      const startTime = '08:00';
-      const endTime = '16:00';
+      const template = templates.find((t) => t.id === shift.templateId);
+      const templateName = template ? template.name : 'Shift';
+      const startTime = template ? (template.startTime || '08:00') : '08:00';
+      const endTime = template ? (template.endTime || '16:00') : '16:00';
+
+      const group = doctorGroups.find((g) => g.id === (shift.targetGroupId || (template ? template.groupId : '')));
 
       let endDateStr = shift.date;
       const [startHour, startMin] = startTime.split(':').map(Number);
@@ -120,9 +150,13 @@ export default async function handler(req: any, res: any) {
       ics += `DTSTAMP:${dtstamp}\r\n`;
       ics += `DTSTART:${dtStartStr}\r\n`;
       ics += `DTEND:${dtEndStr}\r\n`;
-      ics += `SUMMARY:🩺 DutyFlow: Shift\r\n`;
+      ics += `SUMMARY:🩺 DutyFlow: ${templateName}\r\n`;
 
-      let description = `DutyFlow Shift`;
+      if (group && group.name) {
+        ics += `LOCATION:${group.name}\r\n`;
+      }
+
+      let description = `DutyFlow Shift: ${templateName}`;
       if (shift.notes) {
         description += `\\nNotes: ${shift.notes.replace(/\r?\n/g, '\\n')}`;
       }

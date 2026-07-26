@@ -46,7 +46,7 @@ service cloud.firestore {
 
     // 3. Shift Templates collection
     match /shiftTemplates/{templateId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isScheduler();
     }
 
@@ -107,7 +107,7 @@ service cloud.firestore {
 
     // 10. Doctor Groups collection
     match /doctorGroups/{groupId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isScheduler();
     }
 
