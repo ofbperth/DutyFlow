@@ -217,8 +217,9 @@ export default function App() {
         await loadAllData();
       }
     } catch (err: any) {
-      console.error(err);
-      setErrorMessage('Sign-in cancelled or credentials refused by provider.');
+      console.error('Login error details:', err);
+      const msg = err?.code ? `[${err.code}] ${err.message}` : (err?.message || 'Sign-in cancelled or credentials refused by provider.');
+      setErrorMessage(msg);
     } finally {
       setIsAuthLoading(false);
     }
