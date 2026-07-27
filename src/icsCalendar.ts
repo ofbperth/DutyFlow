@@ -90,6 +90,6 @@ export const getICalFeedUrl = (userId: string): string => {
 };
 
 export const getGoogleCalendarSubscribeUrl = (feedUrl: string): string => {
-  const webcalUrl = feedUrl.replace(/^https?:\/\//, 'webcal://');
-  return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
+  const httpsUrl = feedUrl.replace(/^webcal:\/\//, 'https://');
+  return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(httpsUrl)}`;
 };
