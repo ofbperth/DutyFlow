@@ -53,19 +53,9 @@ export default async function handler(req: any, res: any) {
       return res.status(400).send('User ID required');
     }
 
-    // Run structured query to fetch all shifts via REST API with API key
-    const queryBody = {
-      structuredQuery: {
-        from: [{ collectionId: 'shifts' }]
-      }
-    };
-
+    // Fetch shifts, templates, and groups via GET REST API with API key
     const [shiftsRes, templatesRes, groupsRes] = await Promise.all([
-      fetch(`${FIRESTORE_BASE}:runQuery?key=${API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(queryBody)
-      }).catch(err => {
+      fetch(`${FIRESTORE_BASE}/shifts?pageSize=1000&key=${API_KEY}`).catch(err => {
         return { ok: false, error: String(err) } as any;
       }),
       fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000&key=${API_KEY}`).catch(err => {
@@ -80,12 +70,10 @@ export default async function handler(req: any, res: any) {
     let shiftsError = null;
     if (shiftsRes && shiftsRes.ok) {
       const data = await shiftsRes.json();
-      if (Array.isArray(data)) {
-        data.forEach((item: any) => {
-          if (item.document) {
-            const parsed = parseFirestoreDoc(item.document);
-            if (parsed) allShifts.push(parsed);
-          }
+      if (data.documents && Array.isArray(data.documents)) {
+        data.documents.forEach((d: any) => {
+          const parsed = parseFirestoreDoc(d);
+          if (parsed) allShifts.push(parsed);
         });
       }
     } else if (shiftsRes) {
