@@ -1090,12 +1090,10 @@ export default function UserDashboard({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                 <a
                   href={getGoogleCalendarSubscribeUrl(getICalFeedUrl(currentUser.id))}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-300 font-bold py-2 px-3 rounded-xl transition-colors text-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ExternalLink className="h-3.5 w-3.5 text-blue-400" />
-                  Subscribe in Google
+                  1-Click Calendar Sync
                 </a>
 
                 <button
@@ -1111,6 +1109,18 @@ export default function UserDashboard({
                   <Download className="h-3.5 w-3.5 text-emerald-400" />
                   Download .ics File
                 </button>
+              </div>
+
+              <div className="text-[11px] text-slate-400 bg-white/5 border border-white/10 rounded-xl p-2.5 space-y-1">
+                <div className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <HelpCircle className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                  How to sync with Google Calendar Web:
+                </div>
+                <ol className="list-decimal list-inside space-y-0.5 text-slate-400 text-[10px] pl-1">
+                  <li>Click <span className="text-emerald-300 font-mono font-bold">Copy URL</span> above.</li>
+                  <li>Open <strong>Google Calendar</strong> $\rightarrow$ Click <strong>Other calendars (+)</strong> $\rightarrow$ <strong>From URL</strong>.</li>
+                  <li>Paste your URL and click <strong>Add calendar</strong>.</li>
+                </ol>
               </div>
             </div>
 
