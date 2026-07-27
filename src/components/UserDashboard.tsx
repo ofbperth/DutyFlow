@@ -34,7 +34,7 @@ import {
   saveUser,
   saveShift
 } from '../firebase';
-import { downloadICSFile, generateICalendarFeed, getICalFeedUrl, getGoogleCalendarSubscribeUrl } from '../icsCalendar';
+import { downloadICSFile, generateICalendarFeed, getICalFeedUrl, getGoogleCalendarSubscribeUrl, getWebcalSubscribeUrl } from '../icsCalendar';
 
 interface UserDashboardProps {
   currentUser: User;
@@ -1086,14 +1086,24 @@ export default function UserDashboard({
                 </div>
               </div>
 
-              {/* Action Buttons: Subscribe & Download */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              {/* Action Buttons: Google Sync, App Sync, Download */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                 <a
                   href={getGoogleCalendarSubscribeUrl(getICalFeedUrl(currentUser.id))}
-                  className="w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-300 font-bold py-2 px-3 rounded-xl transition-colors text-xs flex items-center justify-center gap-2 cursor-pointer"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-300 font-bold py-2 px-3 rounded-xl transition-colors text-xs flex items-center justify-center gap-1.5 cursor-pointer text-center"
                 >
-                  <ExternalLink className="h-3.5 w-3.5 text-blue-400" />
-                  1-Click Calendar Sync
+                  <ExternalLink className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                  Google Calendar
+                </a>
+
+                <a
+                  href={getWebcalSubscribeUrl(getICalFeedUrl(currentUser.id))}
+                  className="w-full bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 font-bold py-2 px-3 rounded-xl transition-colors text-xs flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                >
+                  <CalendarCheck2 className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                  Apple / Outlook App
                 </a>
 
                 <button
@@ -1104,10 +1114,10 @@ export default function UserDashboard({
                     downloadICSFile(`dutyflow-${currentUser.name.replace(/\s+/g, '_')}-schedule.ics`, content);
                     setSuccessMsg('Downloaded .ics calendar file!');
                   }}
-                  className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold py-2 px-3 rounded-xl transition-colors text-xs flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold py-2 px-3 rounded-xl transition-colors text-xs flex items-center justify-center gap-1.5 cursor-pointer text-center"
                 >
-                  <Download className="h-3.5 w-3.5 text-emerald-400" />
-                  Download .ics File
+                  <Download className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  Download .ics
                 </button>
               </div>
 
