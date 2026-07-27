@@ -2,7 +2,7 @@ const PROJECT_ID = 'dutyflow-502613';
 const API_KEY = 'AIzaSyB16RVqxpat9jjQFVTBcvu7NgEziJR4094';
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
-// Helper to format Date to YYYYMMDDTHHMMSS (Floating Local Time for iCal)
+// Helper to format Date to YYYYMMDDTHHMMSS (Local Time for iCal with TZID)
 const formatICSDateLocal = (dateStr: string, timeStr: string): string => {
   const cleanDate = dateStr.replace(/-/g, '');
   const cleanTime = (timeStr || '00:00').replace(/:/g, '') + '00';
@@ -133,15 +133,25 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Generate iCal feed string using Floating Local Time
+    // Generate RFC 5545 compliant iCal feed string for Google Calendar
     let ics = '';
     ics += 'BEGIN:VCALENDAR\r\n';
     ics += 'VERSION:2.0\r\n';
     ics += 'PRODID:-//DutyFlow//DutyFlow Calendar//EN\r\n';
     ics += 'CALSCALE:GREGORIAN\r\n';
     ics += 'METHOD:PUBLISH\r\n';
-    ics += `X-WR-CALNAME:DutyFlow Schedule\r\n`;
+    ics += 'X-WR-CALNAME:DutyFlow Schedule\r\n';
     ics += 'X-WR-TIMEZONE:Asia/Bangkok\r\n';
+    ics += 'BEGIN:VTIMEZONE\r\n';
+    ics += 'TZID:Asia/Bangkok\r\n';
+    ics += 'X-LIC-LOCATION:Asia/Bangkok\r\n';
+    ics += 'BEGIN:STANDARD\r\n';
+    ics += 'TZOFFSETFROM:+0700\r\n';
+    ics += 'TZOFFSETTO:+0700\r\n';
+    ics += 'TZNAME:GMT+7\r\n';
+    ics += 'DTSTART:19700101T000000\r\n';
+    ics += 'END:STANDARD\r\n';
+    ics += 'END:VTIMEZONE\r\n';
 
     const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
@@ -168,8 +178,8 @@ export default async function handler(req: any, res: any) {
       ics += 'BEGIN:VEVENT\r\n';
       ics += `UID:${uid}\r\n`;
       ics += `DTSTAMP:${dtstamp}\r\n`;
-      ics += `DTSTART:${dtStartStr}\r\n`;
-      ics += `DTEND:${dtEndStr}\r\n`;
+      ics += `DTSTART;TZID=Asia/Bangkok:${dtStartStr}\r\n`;
+      ics += `DTEND;TZID=Asia/Bangkok:${dtEndStr}\r\n`;
       ics += `SUMMARY:🩺 DutyFlow: ${templateName}\r\n`;
 
       if (group && group.name) {
@@ -181,6 +191,8 @@ export default async function handler(req: any, res: any) {
         description += `\\nNotes: ${shift.notes.replace(/\r?\n/g, '\\n')}`;
       }
       ics += `DESCRIPTION:${description}\r\n`;
+      ics += 'SEQUENCE:0\r\n';
+      ics += 'STATUS:CONFIRMED\r\n';
       ics += 'END:VEVENT\r\n';
     });
 
