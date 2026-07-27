@@ -45,19 +45,19 @@ service cloud.firestore {
     }
 
     // 3. Shift Templates collection
-    match /shiftTemplates/{templateId} {
+    match /shiftTemplates/{templateId=**} {
       allow read: if true;
       allow write: if isAdmin() || isScheduler();
     }
 
     // 4. Shifts collection
-    match /shifts/{shiftId} {
+    match /shifts/{shiftId=**} {
       allow read: if true;
       allow write: if isAdmin() || isScheduler();
     }
 
     // 5. Availabilities collection
-    match /availabilities/{availabilityId} {
+    match /availabilities/{availabilityId=**} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated() && (
         isAdmin() ||
@@ -72,7 +72,7 @@ service cloud.firestore {
     }
 
     // 6. Shift Swaps collection
-    match /shiftSwaps/{swapId} {
+    match /shiftSwaps/{swapId=**} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (
         isAdmin() ||
@@ -89,24 +89,24 @@ service cloud.firestore {
     }
 
     // 7. Holidays collection
-    match /holidays/{holidayId} {
+    match /holidays/{holidayId=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     // 8. Config collection
-    match /config/{configId} {
+    match /config/{configId=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isScheduler();
     }
 
     // 9. Test connection
-    match /test/{docId} {
+    match /test/{docId=**} {
       allow read, write: if true;
     }
 
     // 10. Doctor Groups collection
-    match /doctorGroups/{groupId} {
+    match /doctorGroups/{groupId=**} {
       allow read: if true;
       allow write: if isAdmin() || isScheduler();
     }
