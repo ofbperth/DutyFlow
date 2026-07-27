@@ -123,6 +123,7 @@ export default async function handler(req: any, res: any) {
         searchedUserId: userId,
         shiftsError,
         totalShiftsInDB: allShifts.length,
+        allShifts,
         matchedUserShiftsCount: userShifts.length,
         userShifts,
         templatesCount: templates.length,
