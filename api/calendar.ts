@@ -110,10 +110,12 @@ export default async function handler(req: any, res: any) {
 
     const targetLower = userId.toLowerCase();
     const userShifts = allShifts.filter((shift: any) => {
-      if (!shift || !shift.userId) return false;
-      const shiftUserIdStr = shift.userId.toString().trim().toLowerCase();
+      if (!shift) return false;
+      const shiftUserIdStr = shift.userId ? shift.userId.toString().trim().toLowerCase() : '';
+      const shiftIdStr = shift.id ? shift.id.toString().trim().toLowerCase() : '';
       const statusStr = shift.status ? shift.status.toString().trim().toLowerCase() : 'published';
-      return shiftUserIdStr === targetLower && statusStr === 'published';
+      const isUserMatch = shiftUserIdStr === targetLower || shiftIdStr === targetLower;
+      return isUserMatch && statusStr === 'published';
     });
 
     if (req.query && req.query.debug === 'true') {
