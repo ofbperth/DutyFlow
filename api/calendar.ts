@@ -53,15 +53,20 @@ export default async function handler(req: any, res: any) {
       return res.status(400).send('User ID required');
     }
 
-    // Fetch shifts, templates, and groups via GET REST API with API key
+    const fetchHeaders = {
+      'Referer': 'https://dutyflow-502613.firebaseapp.com/',
+      'Origin': 'https://dutyflow-502613.firebaseapp.com'
+    };
+
+    // Fetch shifts, templates, and groups via GET REST API with Referer header & API key
     const [shiftsRes, templatesRes, groupsRes] = await Promise.all([
-      fetch(`${FIRESTORE_BASE}/shifts?pageSize=1000&key=${API_KEY}`).catch(err => {
+      fetch(`${FIRESTORE_BASE}/shifts?pageSize=1000&key=${API_KEY}`, { headers: fetchHeaders }).catch(err => {
         return { ok: false, error: String(err) } as any;
       }),
-      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000&key=${API_KEY}`).catch(err => {
+      fetch(`${FIRESTORE_BASE}/shiftTemplates?pageSize=1000&key=${API_KEY}`, { headers: fetchHeaders }).catch(err => {
         return { ok: false, error: String(err) } as any;
       }),
-      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000&key=${API_KEY}`).catch(err => {
+      fetch(`${FIRESTORE_BASE}/doctorGroups?pageSize=1000&key=${API_KEY}`, { headers: fetchHeaders }).catch(err => {
         return { ok: false, error: String(err) } as any;
       })
     ]);
@@ -77,7 +82,8 @@ export default async function handler(req: any, res: any) {
         });
       }
     } else if (shiftsRes) {
-      shiftsError = shiftsRes.error || `Status ${shiftsRes.status}`;
+      const errText = typeof shiftsRes.text === 'function' ? await shiftsRes.text().catch(() => '') : '';
+      shiftsError = `Status ${shiftsRes.status}: ${errText || shiftsRes.error || ''}`;
     }
 
     const templates: any[] = [];
