@@ -541,10 +541,19 @@ export default function SchedulerDashboard({
                     style={{ backgroundColor: (temp?.color || '#333') + '20', borderColor: temp?.color || '#555', color: '#fff' }}
                     title={`${temp?.name || 'Shift'} (${temp?.startTime} - ${temp?.endTime}) - Group: ${targetGroup?.name || 'General'}`}
                   >
-                    <div className="font-extrabold truncate flex items-center gap-1 text-[10px]">
-                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
-                      <span className="truncate">{temp?.name}</span>
-                      {shift.notes && <FileText className="h-3 w-3 opacity-80 shrink-0 ml-auto" />}
+                    <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
+                      <div className="flex items-center gap-1 min-w-0 truncate">
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
+                        <span className="truncate">{temp?.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {shift.notes && <FileText className="h-3 w-3 opacity-80 shrink-0" />}
+                        <span className={`px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                          shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                        }`}>
+                          {shift.status}
+                        </span>
+                      </div>
                     </div>
                     <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
                       {temp?.startTime} - {temp?.endTime}
@@ -555,9 +564,6 @@ export default function SchedulerDashboard({
                         <span>{targetGroup.name}</span>
                       </div>
                     )}
-                    <span className={`absolute bottom-1 right-1 px-1 rounded text-[9px] font-mono tracking-wider font-semibold uppercase ${shift.status === 'published' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                      {shift.status}
-                    </span>
                   </div>
                 );
               })()
