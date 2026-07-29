@@ -69,9 +69,16 @@ const RotationRearrangerModal: React.FC<Props> = ({ groups, users, assignments, 
     }
   });
 
+  React.useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="glass bg-slate-950/90 border border-white/10 text-slate-100 rounded-xl shadow-2xl w-full max-w-6xl flex flex-col h-[90vh]">
+    <div className="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-950 border border-white/10 text-slate-100 rounded-xl shadow-2xl w-full max-w-6xl flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-900/50 rounded-t-xl shrink-0">
           <div className="flex items-center gap-3">

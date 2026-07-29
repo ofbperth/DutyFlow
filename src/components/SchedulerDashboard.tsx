@@ -84,6 +84,15 @@ export default function SchedulerDashboard({
   // Filter state
   const [showOnlyInvolved, setShowOnlyInvolved] = useState(true);
 
+  React.useEffect(() => {
+    if (assigningCell || activeShiftMenu || conflictCell || showPublishConfirm || showGroupManager || showShiftBalance) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [assigningCell, activeShiftMenu, conflictCell, showPublishConfirm, showGroupManager, showShiftBalance]);
+
 
   const handleOpenShiftMenu = (shift: Shift | null) => {
     setActiveShiftMenu(shift);
@@ -1030,8 +1039,8 @@ export default function SchedulerDashboard({
 
       {/* Assignment Modal for Mobile/Click */}
       {assigningCell && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="assigning-modal">
-          <div className="glass border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="assigning-modal">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div>
               <h3 className="text-sm font-bold text-white font-display">Assign Shift Assignment</h3>
               <p className="text-xs text-slate-400 mt-1">Select a template to assign to {users.find(u => u.id === assigningCell.userId)?.name} on {assigningCell.dateStr}.</p>
@@ -1090,8 +1099,8 @@ export default function SchedulerDashboard({
 
       {/* Shift detail modal */}
       {activeShiftMenu && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="shift-detail-modal">
-          <div className="glass border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="shift-detail-modal">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div>
               <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider ${
                 activeShiftMenu.status === 'published' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
@@ -1167,8 +1176,8 @@ export default function SchedulerDashboard({
 
       {/* Conflict Warning Modal */}
       {conflictCell && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="conflict-modal">
-          <div className="glass border border-amber-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="conflict-modal">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-amber-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl shrink-0">
                 <AlertTriangle className="h-5 w-5" />
@@ -1208,8 +1217,8 @@ export default function SchedulerDashboard({
 
       {/* Publish Confirmation Modal */}
       {showPublishConfirm && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="publish-confirm-modal">
-          <div className="glass border border-blue-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="publish-confirm-modal">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-blue-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-xl shrink-0">
                 <Sparkles className="h-5 w-5" />
@@ -1269,8 +1278,8 @@ export default function SchedulerDashboard({
 
       {/* Shift Balance Overview Modal */}
       {showShiftBalance && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass border border-white/10 rounded-3xl p-5 max-w-[90vw] w-full space-y-4 shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-[90vw] w-full space-y-4 shadow-2xl flex flex-col">
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <h3 className="text-lg font-bold text-white font-display flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-blue-400" /> Shift Balance Overview &amp; Shift Type Breakdown Matrix

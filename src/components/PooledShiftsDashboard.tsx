@@ -39,6 +39,15 @@ export default function PooledShiftsDashboard({
   const [activeShiftNotes, setActiveShiftNotes] = useState<string>('');
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
+  React.useEffect(() => {
+    if (activeShiftMenu) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [activeShiftMenu]);
+
   const allowedPooledNames = ['รับบริจาคเลือด', 'เวรคอกเช้า', 'เวรคอกเที่ยง', 'เวรคอกเย็น', 'เวรคอกดึก', 'เวรคอกดึกดาวน์'];
   const pooledTemplates = templates.filter(t => allowedPooledNames.includes(t.name));
 
@@ -312,8 +321,8 @@ export default function PooledShiftsDashboard({
 
       {/* Shift detail modal */}
       {activeShiftMenu && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div>
               <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider ${
                 activeShiftMenu.status === 'published' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'

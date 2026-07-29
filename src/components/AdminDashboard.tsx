@@ -25,7 +25,8 @@ import {
   deleteUser,
   updateUserGroupAssignment,
   saveRotationAssignments,
-  deleteRotationAssignment
+  deleteRotationAssignment,
+  resetUserGroupAssignmentsForNewRotation
 } from '../firebase';
 import RotationRearrangerModal from './RotationRearrangerModal';
 
@@ -107,6 +108,17 @@ export default function AdminDashboard({
     }
   }, [schedulePeriod]);
 
+  useEffect(() => {
+    if (templateToDelete || virtualUserToDelete || realUserToDelete || showRearrangeModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [templateToDelete, virtualUserToDelete, realUserToDelete, showRearrangeModal]);
+
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setErrorMsg('');
@@ -163,6 +175,7 @@ export default function AdminDashboard({
         startDate: periodStart,
         endDate: periodEnd
       });
+      await resetUserGroupAssignmentsForNewRotation();
       await onRefresh();
       triggerSuccess('Rotation schedule period updated successfully!');
     } catch (err: any) {
@@ -919,8 +932,8 @@ export default function AdminDashboard({
 
       {/* Delete Template Confirmation Modal */}
       {templateToDelete && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="delete-template-modal">
-          <div className="glass border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="delete-template-modal">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl shrink-0">
                 <AlertCircle className="h-5 w-5" />
@@ -958,8 +971,8 @@ export default function AdminDashboard({
 
       {/* Delete Virtual User Confirmation Modal */}
       {virtualUserToDelete && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="delete-virtual-user-modal">
-          <div className="glass border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="delete-virtual-user-modal">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl shrink-0">
                 <AlertCircle className="h-5 w-5" />
@@ -997,8 +1010,8 @@ export default function AdminDashboard({
 
       {/* Delete Active User Confirmation Modal */}
       {realUserToDelete && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="delete-real-user-modal">
-          <div className="glass border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="delete-real-user-modal">
+          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl shrink-0">
                 <AlertCircle className="h-5 w-5" />

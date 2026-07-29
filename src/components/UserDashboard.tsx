@@ -23,7 +23,8 @@ import {
   ShieldCheck,
   Copy,
   Download,
-  Filter
+  Filter,
+  Users
 } from 'lucide-react';
 import { User, Shift, ShiftTemplate, Availability, ShiftSwap, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment, CROSS_GROUP_RULES } from '../types';
 import {
@@ -32,7 +33,8 @@ import {
   saveShiftSwap,
   updateUserProfile,
   saveUser,
-  saveShift
+  saveShift,
+  updateUserGroupAssignment
 } from '../firebase';
 import { downloadICSFile, generateICalendarFeed, getICalFeedUrl, getGoogleCalendarSubscribeUrl, getWebcalSubscribeUrl } from '../icsCalendar';
 
@@ -119,6 +121,12 @@ export default function UserDashboard({
   const [resolvingSwapId, setResolvingSwapId] = useState<string | null>(null);
   const [copiedFeed, setCopiedFeed] = useState(false);
 
+  // Group Selection State
+  const [selectedGroupForModal, setSelectedGroupForModal] = useState('');
+  const [isSavingGroup, setIsSavingGroup] = useState(false);
+  const [selectedProfileGroup, setSelectedProfileGroup] = useState('');
+  const [isUpdatingProfileGroup, setIsUpdatingProfileGroup] = useState(false);
+
   // Filter state
   const [showOnlyInvolved, setShowOnlyInvolved] = useState(true);
 
@@ -178,6 +186,46 @@ export default function UserDashboard({
 
   const myAssignment = rotationAssignments?.find(a => a.userId === currentUser.id);
   const myGroup = groups?.find(g => g.id === myAssignment?.groupId);
+
+  const isUnassigned = !myAssignment || myAssignment.groupId === 'unassigned' || myAssignment.groupId === '';
+
+  useEffect(() => {
+    if (myAssignment && myAssignment.groupId !== 'unassigned') {
+      setSelectedProfileGroup(myAssignment.groupId);
+    }
+  }, [myAssignment]);
+
+  const handleSaveInitialGroup = async () => {
+    if (!selectedGroupForModal) {
+      triggerError('Please select a group.');
+      return;
+    }
+    setIsSavingGroup(true);
+    try {
+      await updateUserGroupAssignment(currentUser.id, 'current', selectedGroupForModal);
+      await onRefresh();
+    } catch (err: any) {
+      triggerError(err.message || 'Failed to save group assignment');
+    } finally {
+      setIsSavingGroup(false);
+    }
+  };
+
+  const handleUpdateProfileGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProfileGroup) return;
+
+    setIsUpdatingProfileGroup(true);
+    try {
+      await updateUserGroupAssignment(currentUser.id, 'current', selectedProfileGroup);
+      await onRefresh();
+      triggerSuccess('Group assignment updated!');
+    } catch (err: any) {
+      triggerError(err.message || 'Failed to update group');
+    } finally {
+      setIsUpdatingProfileGroup(false);
+    }
+  };
 
   const deptUsers = users;
 
@@ -388,6 +436,41 @@ export default function UserDashboard({
 
   return (
     <div className="space-y-6 font-sans max-w-7xl mx-auto px-2 md:px-0 py-4" id="user-dashboard-root">
+      {/* Mandatory Group Selection Modal */}
+      {isUnassigned && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950 overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl relative m-auto max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-white mb-2 font-display">Welcome!</h2>
+            <p className="text-sm text-slate-300 mb-6">
+              Please select your doctor group for the current rotation period before proceeding.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">YOUR ROTATION GROUP</label>
+                <select
+                  value={selectedGroupForModal}
+                  onChange={(e) => setSelectedGroupForModal(e.target.value)}
+                  className="w-full text-sm rounded-xl border border-white/10 bg-white/5 p-3 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                >
+                  <option value="" disabled>Select your group...</option>
+                  {groups.filter(g => !g.isUniversal && g.id !== 'group-universal' && g.id !== 'group-pooled').map(g => (
+                    <option key={g.id} value={g.id} className="bg-slate-900">{g.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleSaveInitialGroup}
+                disabled={isSavingGroup || !selectedGroupForModal}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold py-3 px-4 rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+              >
+                {isSavingGroup && <RefreshCw className="h-4 w-4 animate-spin" />}
+                {isSavingGroup ? 'Saving...' : 'Save & Continue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Alert Banner */}
       {successMsg && (
         <div className="rounded-xl bg-teal-500/10 border border-teal-500/30 p-4 text-xs text-teal-400 flex items-center gap-2 animate-fade-in" id="user-success-alert">
@@ -1028,6 +1111,40 @@ export default function UserDashboard({
                     <RefreshCw className="h-4 w-4 animate-spin text-blue-950" />
                   )}
                   {isUpdatingProfile ? 'Saving...' : 'Save Profile Change'}
+                </button>
+              </form>
+            </div>
+
+            {/* Group Assignment */}
+            <div className="glass border border-white/10 p-5 rounded-3xl">
+              <h2 className="text-sm font-semibold text-white mb-4 border-b border-white/5 pb-3 flex items-center gap-2 font-display">
+                <Users className="h-4 w-4 text-emerald-400" />
+                Group Assignment
+              </h2>
+              <form onSubmit={handleUpdateProfileGroup} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">CURRENT ROTATION GROUP</label>
+                  <select
+                    required
+                    value={selectedProfileGroup}
+                    onChange={e => setSelectedProfileGroup(e.target.value)}
+                    className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                  >
+                    <option value="" disabled>Select a Group</option>
+                    {groups.filter(g => !g.isUniversal && g.id !== 'group-universal' && g.id !== 'group-pooled').map(g => (
+                      <option key={g.id} value={g.id} className="bg-slate-900">{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  disabled={isUpdatingProfileGroup}
+                  className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 disabled:bg-slate-800/50 disabled:border-slate-700 disabled:text-slate-500 font-bold py-2.5 px-4 rounded-xl transition-colors text-xs flex items-center justify-center gap-2 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none cursor-pointer"
+                >
+                  {isUpdatingProfileGroup && (
+                    <RefreshCw className="h-4 w-4 animate-spin text-emerald-400" />
+                  )}
+                  {isUpdatingProfileGroup ? 'Saving...' : 'Update Group'}
                 </button>
               </form>
             </div>

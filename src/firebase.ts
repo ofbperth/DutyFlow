@@ -264,6 +264,22 @@ export const deleteRotationAssignment = async (id: string): Promise<void> => {
   await deleteDoc(doc(db, 'rotationAssignments', id));
 };
 
+export const resetUserGroupAssignmentsForNewRotation = async (): Promise<void> => {
+  const users = await fetchUsers();
+  const assignments = await getRotationAssignments('current');
+  const realUsers = users.filter(u => !u.isVirtual);
+  const promises = realUsers.map(async (u) => {
+    const existing = assignments.find(a => a.userId === u.id);
+    if (existing) {
+      await updateDoc(doc(db, 'rotationAssignments', existing.id), { groupId: 'unassigned' });
+    } else {
+      await updateUserGroupAssignment(u.id, 'current', 'unassigned');
+    }
+  });
+  await Promise.all(promises);
+};
+
+
 // Double Shift Check
 export const checkDoubleShift = (shifts: Shift[], userId: string, date: string, templateId?: string, templates?: ShiftTemplate[]): boolean => {
   if (!templateId || !templates) {
