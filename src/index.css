@@ -118,3 +118,34 @@ body {
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
 }
 
+/* 4-Week Calendar Grid & Glowing Highlight Utilities */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.4), inset 0 0 6px rgba(251, 191, 36, 0.2);
+    border-color: rgba(251, 191, 36, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.8), inset 0 0 10px rgba(251, 191, 36, 0.4);
+    border-color: rgba(252, 211, 77, 1);
+  }
+}
+
+.glow-user-shift {
+  animation: glowPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Zero horizontal side-scroll grid layout helpers */
+.four-week-grid-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.four-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  width: 100%;
+  gap: 0.5rem;
+}
+
+

@@ -18,7 +18,11 @@ import {
   FileText,
   Filter
 } from 'lucide-react';
-import { User, Shift, ShiftTemplate, Availability, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment, CROSS_GROUP_RULES, getAllowedTargetGroupIdsForHomeGroup } from '../types';
+import { User, Shift, ShiftTemplate, Availability, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment, CROSS_GROUP_RULES, getAllowedTargetGroupIdsForHomeGroup, ViewMode, ShiftAssignment } from '../types';
+import FourWeekCalendarView from './FourWeekCalendarView';
+import TouchContextMenu from './TouchContextMenu';
+import BatchAssignModal from './BatchAssignModal';
+import DayInspectorPanel from './DayInspectorPanel';
 import jsPDF from 'jspdf';
 import { saveShift, deleteShift, checkDoubleShift, saveDoctorGroup, deleteDoctorGroup, updateUserGroupAssignment } from '../firebase';
 import GroupManagerModal from './GroupManagerModal';
@@ -83,6 +87,17 @@ export default function SchedulerDashboard({
 
   // Filter state
   const [showOnlyInvolved, setShowOnlyInvolved] = useState(true);
+
+  // 4-Week Calendar View state
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Adaptive Controls State
+  const [copiedRosterDate, setCopiedRosterDate] = useState<string | null>(null);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [showBatchModal, setShowBatchModal] = useState<boolean>(false);
+  const [touchMenuDate, setTouchMenuDate] = useState<string | null>(null);
+  const [showTouchMenu, setShowTouchMenu] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (assigningCell || activeShiftMenu || conflictCell || showPublishConfirm || showGroupManager || showShiftBalance) {
@@ -157,8 +172,12 @@ export default function SchedulerDashboard({
 
 
   // HTML5 Drag & Drop handlers
-  const handleDragStartTemplate = (templateId: string) => {
+  const handleDragStartTemplate = (templateId: string, e?: React.DragEvent) => {
     setDraggedTemplateId(templateId);
+    if (e && e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', templateId);
+      e.dataTransfer.setData('shiftTypeId', templateId);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -169,6 +188,134 @@ export default function SchedulerDashboard({
     if (!draggedTemplateId) return;
     await assignShift(userId, dateStr, draggedTemplateId);
     setDraggedTemplateId(null);
+  };
+
+  // Calendar Cell Drag & Drop Shift Handler
+  const handleCalendarDropShift = async (templateId: string, dateStr: string) => {
+    if (!templateId || templateId.trim() === '') {
+      triggerStatus('Invalid shift template dropped.', 'error');
+      return;
+    }
+    const temp = templates.find(t => t.id === templateId);
+    const newShift: Shift = {
+      id: `shift-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      userId: currentUser.id,
+      date: dateStr,
+      templateId,
+      status: 'draft',
+      assignedBy: currentUser.id,
+      targetGroupId: temp?.groupId || 'group-universal'
+    };
+
+    try {
+      await saveShift(newShift);
+      await onRefresh();
+      triggerStatus('Shift assigned to calendar cell.');
+    } catch (err: any) {
+      triggerStatus(err.message || 'Failed to drop shift', 'error');
+    }
+  };
+
+  // Multi-Select Date Selection Toggle
+  const handleToggleSelectDate = (dateStr: string) => {
+    setSelectedDates(prev =>
+      prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
+    );
+  };
+
+  // Multi-Select Batch Assignment Execution
+  const handleBatchAssignShifts = async (dates: string[], templateId: string, userId?: string) => {
+    if (!dates || dates.length === 0) return;
+    const temp = templates.find(t => t.id === templateId);
+    const targetUser = userId || currentUser.id;
+
+    try {
+      const promises = dates.map(d => {
+        const newShift: Shift = {
+          id: `batch-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          userId: targetUser,
+          date: d,
+          templateId,
+          status: 'draft',
+          assignedBy: currentUser.id,
+          targetGroupId: temp?.groupId || 'group-universal'
+        };
+        return saveShift(newShift);
+      });
+
+      await Promise.all(promises);
+      await onRefresh();
+      setSelectedDates([]);
+      triggerStatus(`Successfully assigned ${temp?.name || 'shift'} to ${dates.length} dates.`);
+    } catch (err: any) {
+      triggerStatus(err.message || 'Failed to execute batch assign', 'error');
+    }
+  };
+
+  // Copy Day Roster
+  const handleCopyDayRoster = (sourceDate: string) => {
+    const dayShifts = shifts.filter(s => s.date === sourceDate);
+    setCopiedRosterDate(sourceDate);
+    triggerStatus(`Copied day roster from ${sourceDate} (${dayShifts.length} shifts).`);
+  };
+
+  // Paste Day Roster
+  const handlePasteDayRoster = async (targetDate: string) => {
+    if (!copiedRosterDate) {
+      triggerStatus('No copied roster available to paste.', 'error');
+      return;
+    }
+    if (targetDate === copiedRosterDate) {
+      triggerStatus('Cannot paste day roster onto the same source date.', 'error');
+      return;
+    }
+
+    const sourceShifts = shifts.filter(s => s.date === copiedRosterDate);
+    try {
+      const promises = sourceShifts.map(s => {
+        const newShift: Shift = {
+          id: `pasted-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          userId: s.userId,
+          date: targetDate,
+          templateId: s.templateId,
+          status: 'draft',
+          assignedBy: currentUser.id,
+          notes: s.notes,
+          targetGroupId: s.targetGroupId
+        };
+        return saveShift(newShift);
+      });
+
+      await Promise.all(promises);
+      await onRefresh();
+      triggerStatus(`Pasted roster onto ${targetDate} (${sourceShifts.length} shifts).`);
+    } catch (err: any) {
+      triggerStatus(err.message || 'Failed to paste day roster', 'error');
+    }
+  };
+
+  // Clear Day Roster
+  const handleClearDayRoster = async (dateStr: string) => {
+    const targetShifts = shifts.filter(s => s.date === dateStr);
+    if (targetShifts.length === 0) {
+      triggerStatus(`No shifts to clear on ${dateStr}.`);
+      return;
+    }
+
+    try {
+      const promises = targetShifts.map(s => deleteShift(s.id));
+      await Promise.all(promises);
+      await onRefresh();
+      triggerStatus(`Cleared all ${targetShifts.length} shift(s) on ${dateStr}.`);
+    } catch (err: any) {
+      triggerStatus(err.message || 'Failed to clear day roster', 'error');
+    }
+  };
+
+  // Touch Context Menu Trigger
+  const handleContextMenuDate = (dateStr: string) => {
+    setTouchMenuDate(dateStr);
+    setShowTouchMenu(true);
   };
 
   // Core Shift Assignment Logic
@@ -642,8 +789,36 @@ export default function SchedulerDashboard({
           </button>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons & View Switcher */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* View Switcher Toggle Buttons */}
+          <div className="flex items-center bg-white/5 border border-white/10 p-1 rounded-xl" id="scheduler-view-switcher">
+            <button
+              type="button"
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'calendar'
+                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              id="scheduler-calendar-mode-btn"
+            >
+              📅 4-Week Calendar
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('matrix')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'matrix'
+                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              id="scheduler-matrix-mode-btn"
+            >
+              📊 Matrix
+            </button>
+          </div>
+
           <button
             onClick={() => setShowShiftBalance(true)}
             className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 px-4 py-2 rounded-xl text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
@@ -690,7 +865,7 @@ export default function SchedulerDashboard({
         </div>
       </div>
 
-      {/* Main Grid area */}
+      {/* Workspace Grid Container */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6" id="scheduler-workspace">
         {/* Templates Sidebar */}
         <div className="xl:col-span-1 glass border border-white/10 rounded-2xl p-4 h-fit" id="templates-sidebar">
@@ -790,10 +965,50 @@ export default function SchedulerDashboard({
           </div>
         </div>
 
-        {/* Scheduler Board */}
-        <div className="xl:col-span-3 space-y-4">
-          <div className="sm:hidden text-[10px] text-slate-400 text-center mb-2 bg-white/5 py-1.5 rounded-lg border border-white/10">Swipe left/right to view full schedule</div>
-          <div className="glass border border-white/10 rounded-2xl overflow-x-auto shadow-inner" id="schedule-matrix-container">
+        {/* Main Workspace Area (4-Week Calendar View vs Classic Matrix View) */}
+        <div className="xl:col-span-3">
+          {viewMode === 'calendar' ? (
+            <FourWeekCalendarView
+              startDate={activePeriod.startDate}
+              assignments={shifts.map(s => {
+                const user = users.find(u => u.id === s.userId);
+                const template = templates.find(t => t.id === s.templateId);
+                return {
+                  id: s.id,
+                  userId: s.userId,
+                  userName: user?.name || 'Unknown Staff',
+                  date: s.date,
+                  shiftTypeId: s.templateId,
+                  shiftTypeName: template?.name || 'Shift',
+                  color: template?.color || '#3b82f6',
+                  isCurrentUser: s.userId === currentUser.id,
+                  startTime: template?.startTime,
+                  endTime: template?.endTime,
+                  status: s.status,
+                  notes: s.notes,
+                  targetGroupId: s.targetGroupId
+                };
+              })}
+              currentUserId={currentUser.id}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              onSelectDate={(date) => setSelectedDate(date)}
+              selectedDate={selectedDate}
+              isScheduler={true}
+              onDropShift={handleCalendarDropShift}
+              onBatchAssign={handleBatchAssignShifts}
+              onCopyDayRoster={handleCopyDayRoster}
+              onPasteDayRoster={handlePasteDayRoster}
+              copiedRosterDate={copiedRosterDate}
+              selectedDates={selectedDates}
+              onToggleSelectDate={handleToggleSelectDate}
+              onContextMenuDate={handleContextMenuDate}
+              holidays={holidays}
+            />
+          ) : (
+            <React.Fragment>
+              <div className="sm:hidden text-[10px] text-slate-400 text-center mb-2 bg-white/5 py-1.5 rounded-lg border border-white/10">Swipe left/right to view full schedule</div>
+              <div className="glass border border-white/10 rounded-2xl overflow-x-auto shadow-inner" id="schedule-matrix-container">
             <table className="w-full border-collapse text-left min-w-[900px]">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
@@ -1040,8 +1255,10 @@ export default function SchedulerDashboard({
               </table>
             </div>
           </div>
-        </div>
-      </div>
+        </React.Fragment>
+      )}
+    </div>
+  </div>
 
       {/* Assignment Modal for Mobile/Click */}
       {assigningCell && (
@@ -1347,6 +1564,131 @@ export default function SchedulerDashboard({
           </div>
         </div>
       )}
+
+      {/* Floating Multi-Select Batch Assignment Bar */}
+      {selectedDates.length > 0 && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-indigo-500/40 p-4 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-4 animate-fade-in"
+          id="floating-batch-action-bar"
+        >
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 font-extrabold font-mono text-xs">
+              {selectedDates.length}
+            </div>
+            <span className="text-xs font-bold text-slate-200">
+              Date{selectedDates.length === 1 ? '' : 's'} Selected
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBatchModal(true)}
+              className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+              id="open-batch-assign-modal-btn"
+            >
+              <span>⚡ Batch Assign Shifts</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedDates([])}
+              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white font-semibold text-xs transition-colors cursor-pointer"
+              id="clear-selected-dates-btn"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Assignment Modal */}
+      <BatchAssignModal
+        selectedDates={selectedDates}
+        templates={filteredTemplates}
+        users={users}
+        isOpen={showBatchModal}
+        onClose={() => setShowBatchModal(false)}
+        onAssign={handleBatchAssignShifts}
+      />
+
+      {/* Touch Context Menu */}
+      <TouchContextMenu
+        date={touchMenuDate || ''}
+        isOpen={showTouchMenu}
+        onClose={() => setShowTouchMenu(false)}
+        onInspectRoster={(date) => {
+          setSelectedDate(date);
+          setShowTouchMenu(false);
+        }}
+        onAddShift={(date) => {
+          setAssigningCell({ userId: currentUser.id, dateStr: date });
+          setShowTouchMenu(false);
+        }}
+        onCopyRoster={handleCopyDayRoster}
+        onPasteRoster={handlePasteDayRoster}
+        onClearRoster={handleClearDayRoster}
+        canPaste={Boolean(copiedRosterDate && copiedRosterDate !== touchMenuDate)}
+        isScheduler={true}
+      />
+
+      {/* Day Inspector Panel */}
+      <DayInspectorPanel
+        selectedDate={selectedDate}
+        assignments={shifts.map(s => {
+          const user = users.find(u => u.id === s.userId);
+          const template = templates.find(t => t.id === s.templateId);
+          return {
+            id: s.id,
+            userId: s.userId,
+            userName: user?.name || 'Unknown Staff',
+            date: s.date,
+            shiftTypeId: s.templateId,
+            shiftTypeName: template?.name || 'Shift',
+            color: template?.color || '#3b82f6',
+            isCurrentUser: s.userId === currentUser.id,
+            startTime: template?.startTime,
+            endTime: template?.endTime,
+            status: s.status,
+            notes: s.notes,
+            targetGroupId: s.targetGroupId
+          };
+        })}
+        users={users}
+        templates={templates}
+        groups={groups}
+        holidays={holidays}
+        isOpen={Boolean(selectedDate)}
+        onClose={() => setSelectedDate(null)}
+        isScheduler={true}
+        onAddAssignment={(dateStr) => {
+          setAssigningCell({ userId: currentUser.id, dateStr });
+        }}
+        onEditAssignment={async (assignmentId, notes) => {
+          const targetShift = shifts.find(s => s.id === assignmentId);
+          if (targetShift) {
+            try {
+              await saveShift({ ...targetShift, notes: notes || '' });
+              await onRefresh();
+              triggerStatus('Shift note updated successfully.');
+            } catch (err: any) {
+              triggerStatus(err.message || 'Failed to update note', 'error');
+            }
+          }
+        }}
+        onRemoveAssignment={async (assignmentId) => {
+          const targetShift = shifts.find(s => s.id === assignmentId);
+          if (targetShift) {
+            try {
+              await deleteShift(targetShift.id);
+              await onRefresh();
+              triggerStatus('Shift assignment removed.');
+            } catch (err: any) {
+              triggerStatus(err.message || 'Failed to remove assignment', 'error');
+            }
+          }
+        }}
+      />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import type React from 'react';
+
 export type Role = 'admin' | 'scheduler' | 'user';
 
 export interface User {
@@ -116,4 +118,80 @@ export const getAllowedTargetGroupIdsForHomeGroup = (homeGroupId: string): strin
   return allowed;
 };
 
+// 4-Week Calendar & Adaptive Scheduling Contracts
+export type ViewMode = 'calendar' | 'matrix';
 
+export interface ShiftAssignment {
+  id: string;
+  userId: string;
+  userName: string;
+  date: string; // YYYY-MM-DD
+  shiftTypeId: string;
+  shiftTypeName: string;
+  color: string;
+  isCurrentUser?: boolean;
+  startTime?: string;
+  endTime?: string;
+  status?: ShiftStatus;
+  notes?: string;
+  targetGroupId?: string;
+}
+
+export interface FourWeekCalendarViewProps {
+  startDate: string; // First day of 28-day rotation
+  assignments: ShiftAssignment[];
+  currentUserId?: string;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  onSelectDate: (date: string) => void;
+  selectedDate: string | null;
+  // Adaptive Controls Props
+  isScheduler?: boolean;
+  onDropShift?: (shiftTypeId: string, date: string) => void;
+  onBatchAssign?: (dates: string[], shiftTypeId: string) => void;
+  onCopyDayRoster?: (sourceDate: string) => void;
+  onPasteDayRoster?: (targetDate: string) => void;
+  copiedRosterDate?: string | null;
+  // Extended Adaptive Props
+  selectedDates?: string[];
+  onToggleSelectDate?: (date: string) => void;
+  onContextMenuDate?: (date: string, e: React.MouseEvent | React.TouchEvent) => void;
+  holidays?: Holiday[];
+}
+
+export interface DayInspectorPanelProps {
+  selectedDate: string | null;
+  assignments: ShiftAssignment[];
+  users?: User[];
+  templates?: ShiftTemplate[];
+  groups?: DoctorGroup[];
+  holidays?: Holiday[];
+  isOpen: boolean;
+  onClose: () => void;
+  isScheduler?: boolean;
+  onAddAssignment?: (date: string) => void;
+  onEditAssignment?: (assignmentId: string, notes?: string) => void;
+  onRemoveAssignment?: (assignmentId: string) => void;
+}
+
+export interface TouchContextMenuProps {
+  date: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onInspectRoster: (date: string) => void;
+  onAddShift?: (date: string) => void;
+  onCopyRoster?: (date: string) => void;
+  onPasteRoster?: (date: string) => void;
+  onClearRoster?: (date: string) => void;
+  canPaste?: boolean;
+  isScheduler?: boolean;
+}
+
+export interface BatchAssignModalProps {
+  selectedDates: string[];
+  templates: ShiftTemplate[];
+  users: User[];
+  isOpen: boolean;
+  onClose: () => void;
+  onAssign: (dates: string[], templateId: string, userId?: string) => Promise<void>;
+}

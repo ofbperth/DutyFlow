@@ -26,7 +26,10 @@ import {
   Filter,
   Users
 } from 'lucide-react';
-import { User, Shift, ShiftTemplate, Availability, ShiftSwap, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment, CROSS_GROUP_RULES } from '../types';
+import { User, Shift, ShiftTemplate, Availability, ShiftSwap, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment, CROSS_GROUP_RULES, ViewMode, ShiftAssignment } from '../types';
+import FourWeekCalendarView from './FourWeekCalendarView';
+import TouchContextMenu from './TouchContextMenu';
+import DayInspectorPanel from './DayInspectorPanel';
 import {
   saveAvailability,
   deleteAvailability,
@@ -129,6 +132,12 @@ export default function UserDashboard({
 
   // Filter state
   const [showOnlyInvolved, setShowOnlyInvolved] = useState(true);
+
+  // 4-Week Calendar View state
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [touchMenuDate, setTouchMenuDate] = useState<string | null>(null);
+  const [showTouchMenu, setShowTouchMenu] = useState<boolean>(false);
 
   // Helper Date Parsing & Formatting functions
   const parseLocalDate = (dateStr: string) => {
@@ -530,8 +539,36 @@ export default function UserDashboard({
                 </span>
               </div>
 
-              {/* Comparative Difference Mode button */}
+              {/* Comparative Difference Mode button & View Switcher */}
               <div className="flex flex-wrap items-center gap-3">
+                {/* View Switcher Toggle Buttons */}
+                <div className="flex items-center bg-white/5 border border-white/10 p-1 rounded-xl" id="dashboard-view-switcher">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('calendar')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'calendar'
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    id="user-dashboard-calendar-mode-btn"
+                  >
+                    📅 4-Week Calendar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('matrix')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'matrix'
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    id="user-dashboard-matrix-mode-btn"
+                  >
+                    📊 Matrix
+                  </button>
+                </div>
+
                 {/* Toggle Involved Groups Button */}
                 <button
                   type="button"
@@ -567,234 +604,303 @@ export default function UserDashboard({
               </div>
             </div>
 
-            {/* Assigned Group Banner */}
-            {myGroup && (
-              <div className="p-4 glass border border-white/10 rounded-2xl flex items-center justify-between shadow-sm">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-100 font-display">Your Active Group: {myGroup.name}</h3>
-                </div>
-                {myGroup.color && (
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: myGroup.color }} />
-                )}
-              </div>
-            )}
+            {/* View Mode Router: 4-Week Calendar View vs Classic Matrix View */}
+            {(() => {
+              const assignments: ShiftAssignment[] = shifts.map(s => {
+                const user = users.find(u => u.id === s.userId);
+                const template = templates.find(t => t.id === s.templateId);
+                return {
+                  id: s.id,
+                  userId: s.userId,
+                  userName: user?.name || 'Unknown Staff',
+                  date: s.date,
+                  shiftTypeId: s.templateId,
+                  shiftTypeName: template?.name || 'Shift',
+                  color: template?.color || '#3b82f6',
+                  isCurrentUser: s.userId === currentUser.id,
+                  startTime: template?.startTime,
+                  endTime: template?.endTime,
+                  status: s.status,
+                  notes: s.notes,
+                  targetGroupId: s.targetGroupId
+                };
+              });
 
-            {/* Shift grid matrix (Group-organized schedule grid) */}
-            <div className="sm:hidden text-[10px] text-slate-400 text-center mb-2 bg-white/5 py-1.5 rounded-lg border border-white/10">Swipe left/right to view full schedule</div>
-            <div className="glass border border-white/10 rounded-2xl overflow-x-auto shadow-inner">
-              <table className="w-full border-collapse text-left min-w-[900px]">
-                <thead>
-                  <tr className="bg-white/5 border-b border-white/10">
-                    <th className="p-4 text-xs font-bold text-slate-200 w-44 sticky left-0 bg-[#14112c]/95 backdrop-blur-md z-10 border-r border-white/10">
-                      Teammate
-                    </th>
-                    {datesArray.map(dateStr => {
-                      const isHoliday = holidays.some(h => h.date === dateStr);
-                      const dateObj = parseLocalDate(dateStr);
-                      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                      const dayNum = dateObj.getDate();
-                      const isWeekend = dayOfWeek === 'Sat' || dayOfWeek === 'Sun';
+              if (viewMode === 'calendar') {
+                return (
+                  <>
+                    <FourWeekCalendarView
+                      startDate={activePeriod.startDate}
+                      assignments={assignments}
+                      currentUserId={currentUser.id}
+                      viewMode={viewMode}
+                      onViewModeChange={setViewMode}
+                      onSelectDate={(date) => setSelectedDate(date)}
+                      selectedDate={selectedDate}
+                      onContextMenuDate={(date) => {
+                        setTouchMenuDate(date);
+                        setShowTouchMenu(true);
+                      }}
+                      holidays={holidays}
+                    />
+                    <TouchContextMenu
+                      date={touchMenuDate || ''}
+                      isOpen={showTouchMenu}
+                      onClose={() => setShowTouchMenu(false)}
+                      onInspectRoster={(date) => {
+                        setSelectedDate(date);
+                        setShowTouchMenu(false);
+                      }}
+                      isScheduler={false}
+                    />
+                    <DayInspectorPanel
+                      selectedDate={selectedDate}
+                      assignments={assignments}
+                      users={users}
+                      templates={templates}
+                      groups={groups}
+                      holidays={holidays}
+                      isOpen={Boolean(selectedDate)}
+                      onClose={() => setSelectedDate(null)}
+                      isScheduler={false}
+                    />
+                  </>
+                );
+              }
 
-                      return (
-                        <th
-                          key={dateStr}
-                          className={`p-2 text-center border-r border-white/10 min-w-12 ${
-                            isHoliday
-                              ? 'bg-blue-500/10 text-blue-400 font-semibold'
-                              : isWeekend
-                                ? 'bg-white/5 text-slate-400'
-                                : 'text-slate-400'
-                          }`}
-                        >
-                          <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>
-                          <div className="text-xs font-extrabold tabular-nums">{dayNum}</div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 bg-transparent">
-                  {displayedGroupsWithUsers.map(({ group, users: groupUsers }) => (
-                    <React.Fragment key={group.id}>
-                      <tr className="bg-white/[0.03] border-y border-white/10">
-                        <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-20" style={{
-                          backgroundColor: group.color ? `${group.color}20` : 'rgba(255,255,255,0.05)',
-                          backdropFilter: 'blur(12px)',
-                          borderLeft: `4px solid ${group.color || '#fff'}`
-                        }}>
-                          <div className="flex items-center justify-between pl-2">
-                            <span className="text-xs font-bold font-display" style={{ color: group.color || '#fff' }}>
-                              {group.name} {group.isUniversal ? '(Universal)' : ''}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                      {groupUsers.length > 0 ? (
-                        [...groupUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => {
-                          const userAssignment = rotationAssignments.find(a => a.userId === u.id);
-                          const userHomeGroup = groups.find(g => g.id === userAssignment?.groupId);
-                          const isOuterDoctor = userHomeGroup && userHomeGroup.id !== group.id;
+              return (
+                <>
+                  {/* Assigned Group Banner */}
+                  {myGroup && (
+                    <div className="p-4 glass border border-white/10 rounded-2xl flex items-center justify-between shadow-sm">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-100 font-display">Your Active Group: {myGroup.name}</h3>
+                      </div>
+                      {myGroup.color && (
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: myGroup.color }} />
+                      )}
+                    </div>
+                  )}
 
-                          return (
-                            <tr key={`${group.id}-${u.id}`} className={`hover:bg-white/5 ${u.id === currentUser.id ? 'bg-amber-500/5' : ''}`}>
-                              <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md border-r border-white/10 font-medium text-slate-300 z-10">
-                                <div className="text-xs font-bold text-slate-200 flex items-center flex-wrap gap-1">
-                                  <span>{u.name}</span>
-                                  {u.id === currentUser.id && (
-                                    <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>
-                                  )}
-                                  {isOuterDoctor && (
-                                    <span className="text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded" title={`Staff home group is ${userHomeGroup.name}`}>
-                                      จาก {userHomeGroup.name}
-                                    </span>
-                                  )}
+                  {/* Shift grid matrix (Group-organized schedule grid) */}
+                  <div className="sm:hidden text-[10px] text-slate-400 text-center mb-2 bg-white/5 py-1.5 rounded-lg border border-white/10">Swipe left/right to view full schedule</div>
+                  <div className="glass border border-white/10 rounded-2xl overflow-x-auto shadow-inner">
+                    <table className="w-full border-collapse text-left min-w-[900px]">
+                      <thead>
+                        <tr className="bg-white/5 border-b border-white/10">
+                          <th className="p-4 text-xs font-bold text-slate-200 w-44 sticky left-0 bg-[#14112c]/95 backdrop-blur-md z-10 border-r border-white/10">
+                            Teammate
+                          </th>
+                          {datesArray.map(dateStr => {
+                            const isHoliday = holidays.some(h => h.date === dateStr);
+                            const dateObj = parseLocalDate(dateStr);
+                            const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                            const dayNum = dateObj.getDate();
+                            const isWeekend = dayOfWeek === 'Sat' || dayOfWeek === 'Sun';
+
+                            return (
+                              <th
+                                key={dateStr}
+                                className={`p-2 text-center border-r border-white/10 min-w-12 ${
+                                  isHoliday
+                                    ? 'bg-blue-500/10 text-blue-400 font-semibold'
+                                    : isWeekend
+                                      ? 'bg-white/5 text-slate-400'
+                                      : 'text-slate-400'
+                                }`}
+                              >
+                                <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>
+                                <div className="text-xs font-extrabold tabular-nums">{dayNum}</div>
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 bg-transparent">
+                        {displayedGroupsWithUsers.map(({ group, users: groupUsers }) => (
+                          <React.Fragment key={group.id}>
+                            <tr className="bg-white/[0.03] border-y border-white/10">
+                              <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-20" style={{
+                                backgroundColor: group.color ? `${group.color}20` : 'rgba(255,255,255,0.05)',
+                                backdropFilter: 'blur(12px)',
+                                borderLeft: `4px solid ${group.color || '#fff'}`
+                              }}>
+                                <div className="flex items-center justify-between pl-2">
+                                  <span className="text-xs font-bold font-display" style={{ color: group.color || '#fff' }}>
+                                    {group.name} {group.isUniversal ? '(Universal)' : ''}
+                                  </span>
                                 </div>
                               </td>
+                            </tr>
+                            {groupUsers.length > 0 ? (
+                              [...groupUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => {
+                                const userAssignment = rotationAssignments.find(a => a.userId === u.id);
+                                const userHomeGroup = groups.find(g => g.id === userAssignment?.groupId);
+                                const isOuterDoctor = userHomeGroup && userHomeGroup.id !== group.id;
 
-                              {/* Day Cells */}
-                              {datesArray.map(dateStr => {
-                                const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
-                                
                                 return (
-                                  <td
-                                    key={dateStr}
-                                    className={`p-1.5 text-center relative border-r border-white/5 ${u.id === currentUser.id ? 'bg-white/[0.02]' : ''}`}
-                                    style={{ height: '54px' }}
-                                  >
-                                    {shift ? (
-                                      (() => {
-                                        const temp = templates.find(t => t.id === shift.templateId);
-                                        const targetGroupId = shift.targetGroupId || temp?.groupId;
-                                        const targetGroup = groups.find(g => g.id === targetGroupId);
-                                        const isCrossGroupShift = targetGroupId && targetGroupId !== 'group-universal' && targetGroupId !== 'group-pooled' && userHomeGroup && targetGroupId !== userHomeGroup.id;
-                                        return (
-                                          <div
-                                            className="group relative rounded-lg p-1.5 text-[10px] text-left shadow-sm border flex flex-col justify-between"
-                                            style={{
-                                              backgroundColor: (temp?.color || '#333') + '20',
-                                              borderColor: temp?.color || '#555',
-                                              color: '#fff'
-                                            }}
-                                          >
-                                            <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
-                                              <div className="flex items-center gap-1 min-w-0 truncate">
-                                                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
-                                                <span className="truncate">{temp?.name}</span>
-                                              </div>
-                                              <span className={`shrink-0 px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
-                                                shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                              }`}>
-                                                {shift.status}
-                                              </span>
-                                            </div>
-                                            <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
-                                              {temp?.startTime} - {temp?.endTime}
-                                            </div>
-                                            {isCrossGroupShift && targetGroup && (
-                                              <div className="mt-1 text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
-                                                <span>🏷️</span>
-                                                <span>{targetGroup.name}</span>
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })()
-                                    ) : (
-                                    <div className="w-full h-full"></div>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })
-                    ) : (
-                        <tr>
-                          <td colSpan={datesArray.length + 1} className="p-4 text-center border-b border-white/5 bg-white/[0.02]">
-                            <div className="flex flex-col items-center justify-center gap-2 py-2">
-                              <span className="text-xs text-slate-400">No doctors assigned to {group.name} yet</span>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                  
-                  {shouldShowUnassigned && unassignedUsers.length > 0 && (
-                    <React.Fragment>
-                      <tr className="bg-white/[0.03] border-y border-white/10">
-                        <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-20" style={{
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          backdropFilter: 'blur(12px)',
-                          borderLeft: `4px solid #fff`
-                        }}>
-                          <div className="flex items-center justify-between pl-2">
-                            <span className="text-xs font-bold font-display text-slate-400">
-                              Unassigned / General
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                      {[...unassignedUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => (
-                          <tr key={u.id} className={`hover:bg-white/5 ${u.id === currentUser.id ? 'bg-amber-500/5' : ''}`}>
-                            <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md border-r border-white/10 font-medium text-slate-300 z-10">
-                              <div className="text-xs font-bold text-slate-200">
-                                {u.name} {u.id === currentUser.id && <span className="ml-1.5 text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>}
-                              </div>
-                            </td>
+                                  <tr key={`${group.id}-${u.id}`} className={`hover:bg-white/5 ${u.id === currentUser.id ? 'bg-amber-500/5' : ''}`}>
+                                    <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md border-r border-white/10 font-medium text-slate-300 z-10">
+                                      <div className="text-xs font-bold text-slate-200 flex items-center flex-wrap gap-1">
+                                        <span>{u.name}</span>
+                                        {u.id === currentUser.id && (
+                                          <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>
+                                        )}
+                                        {isOuterDoctor && (
+                                          <span className="text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded" title={`Staff home group is ${userHomeGroup.name}`}>
+                                            จาก {userHomeGroup.name}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
 
-                            {/* Day Cells */}
-                            {datesArray.map(dateStr => {
-                              const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
-                              
-                              return (
-                                <td
-                                  key={dateStr}
-                                  className={`p-1.5 text-center relative border-r border-white/5 ${u.id === currentUser.id ? 'bg-white/[0.02]' : ''}`}
-                                  style={{ height: '54px' }}
-                                >
-                                  {shift ? (
-                                    (() => {
-                                      const temp = templates.find(t => t.id === shift.templateId);
+                                    {/* Day Cells */}
+                                    {datesArray.map(dateStr => {
+                                      const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
+                                      
                                       return (
-                                        <div
-                                          className="group relative rounded-lg p-1.5 text-[10px] text-left shadow-sm border"
-                                          style={{
-                                            backgroundColor: (temp?.color || '#333') + '20',
-                                            borderColor: temp?.color || '#555',
-                                            color: '#fff'
-                                          }}
+                                        <td
+                                          key={dateStr}
+                                          className={`p-1.5 text-center relative border-r border-white/5 ${u.id === currentUser.id ? 'bg-white/[0.02]' : ''}`}
+                                          style={{ height: '54px' }}
                                         >
-                                          <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
-                                            <div className="flex items-center gap-1 min-w-0 truncate">
-                                              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
-                                              <span className="truncate">{temp?.name}</span>
-                                            </div>
-                                            <span className={`shrink-0 px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
-                                              shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                            }`}>
-                                              {shift.status}
-                                            </span>
-                                          </div>
-                                          <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
-                                            {temp?.startTime} - {temp?.endTime}
-                                          </div>
-                                        </div>
-                                      );
-                                    })()
-                                  ) : (
-                                    <div className="w-full h-full"></div>
-                                  )}
-                                </td>
+                                          {shift ? (
+                                            (() => {
+                                              const temp = templates.find(t => t.id === shift.templateId);
+                                              const targetGroupId = shift.targetGroupId || temp?.groupId;
+                                              const targetGroup = groups.find(g => g.id === targetGroupId);
+                                              const isCrossGroupShift = targetGroupId && targetGroupId !== 'group-universal' && targetGroupId !== 'group-pooled' && userHomeGroup && targetGroupId !== userHomeGroup.id;
+                                              return (
+                                                <div
+                                                  className="group relative rounded-lg p-1.5 text-[10px] text-left shadow-sm border flex flex-col justify-between"
+                                                  style={{
+                                                    backgroundColor: (temp?.color || '#333') + '20',
+                                                    borderColor: temp?.color || '#555',
+                                                    color: '#fff'
+                                                  }}
+                                                >
+                                                  <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
+                                                    <div className="flex items-center gap-1 min-w-0 truncate">
+                                                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
+                                                      <span className="truncate">{temp?.name}</span>
+                                                    </div>
+                                                    <span className={`shrink-0 px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                                                      shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                                    }`}>
+                                                      {shift.status}
+                                                    </span>
+                                                  </div>
+                                                  <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
+                                                    {temp?.startTime} - {temp?.endTime}
+                                                  </div>
+                                                  {isCrossGroupShift && targetGroup && (
+                                                    <div className="mt-1 text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
+                                                      <span>🏷️</span>
+                                                      <span>{targetGroup.name}</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })()
+                                          ) : (
+                                          <div className="w-full h-full"></div>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
                               );
-                            })}
-                          </tr>
+                            })
+                          ) : (
+                              <tr>
+                                <td colSpan={datesArray.length + 1} className="p-4 text-center border-b border-white/5 bg-white/[0.02]">
+                                  <div className="flex flex-col items-center justify-center gap-2 py-2">
+                                    <span className="text-xs text-slate-400">No doctors assigned to {group.name} yet</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
-                    </React.Fragment>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        
+                        {shouldShowUnassigned && unassignedUsers.length > 0 && (
+                          <React.Fragment>
+                            <tr className="bg-white/[0.03] border-y border-white/10">
+                              <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-20" style={{
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                                backdropFilter: 'blur(12px)',
+                                borderLeft: `4px solid #fff`
+                              }}>
+                                <div className="flex items-center justify-between pl-2">
+                                  <span className="text-xs font-bold font-display text-slate-400">
+                                    Unassigned / General
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                            {[...unassignedUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => (
+                                <tr key={u.id} className={`hover:bg-white/5 ${u.id === currentUser.id ? 'bg-amber-500/5' : ''}`}>
+                                  <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md border-r border-white/10 font-medium text-slate-300 z-10">
+                                    <div className="text-xs font-bold text-slate-200">
+                                      {u.name} {u.id === currentUser.id && <span className="ml-1.5 text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>}
+                                    </div>
+                                  </td>
+
+                                  {/* Day Cells */}
+                                  {datesArray.map(dateStr => {
+                                    const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
+                                    
+                                    return (
+                                      <td
+                                        key={dateStr}
+                                        className={`p-1.5 text-center relative border-r border-white/5 ${u.id === currentUser.id ? 'bg-white/[0.02]' : ''}`}
+                                        style={{ height: '54px' }}
+                                      >
+                                        {shift ? (
+                                          (() => {
+                                            const temp = templates.find(t => t.id === shift.templateId);
+                                            return (
+                                              <div
+                                                className="group relative rounded-lg p-1.5 text-[10px] text-left shadow-sm border"
+                                                style={{
+                                                  backgroundColor: (temp?.color || '#333') + '20',
+                                                  borderColor: temp?.color || '#555',
+                                                  color: '#fff'
+                                                }}
+                                              >
+                                                <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
+                                                  <div className="flex items-center gap-1 min-w-0 truncate">
+                                                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
+                                                    <span className="truncate">{temp?.name}</span>
+                                                  </div>
+                                                  <span className={`shrink-0 px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                                                    shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                                  }`}>
+                                                    {shift.status}
+                                                  </span>
+                                                </div>
+                                                <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
+                                                  {temp?.startTime} - {temp?.endTime}
+                                                </div>
+                                              </div>
+                                            );
+                                          })()
+                                        ) : (
+                                          <div className="w-full h-full"></div>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                          </React.Fragment>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
 
           </div>
         )}
