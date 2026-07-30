@@ -22,3 +22,41 @@ Requirements to implement:
 
 MANDATORY INTEGRITY WARNING:
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A Forensic Auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
+
+## 2026-07-30T13:11:40Z
+You are Worker 3, working in directory `c:\DEV\DutyFlow\.agents\implementer_3`.
+
+Your task is to implement the CRITICAL REMEDIATIONS for DutyFlow UI/UX requirements R1, R2, R3, R4 based on Reviewer 1's detailed audit findings:
+
+MANDATORY INTEGRITY WARNING:
+DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A Forensic Auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
+
+EXACT REMEDIATION INSTRUCTIONS:
+
+1. **R1 Remediation (Direct Drag & Drop Staff Selector Modal)**:
+   - In `SchedulerDashboard.tsx` and `FourWeekCalendarView.tsx`:
+   - Fix `handleCalendarDropShift` and drop/add shift handlers. DO NOT auto-assign dropped shifts to `currentUser.id`.
+   - When a shift template is dropped onto a calendar date cell or added from panel, open a Staff Selection Modal/Prompt asking which staff member (doctor) from `doctors` / `users` to assign to that shift for that specific `dateStr`.
+   - When the user selects a staff member in the modal/prompt, create the shift with the selected `userId` and call `saveShift`.
+
+2. **R2 Remediation (Upper Panel Batch Assign Trigger)**:
+   - In `SchedulerDashboard.tsx` (lines 800-865 upper control panel header bar):
+   - Add a prominent, styled "Batch Assign" button (`⚡ Batch Assign`) directly in the upper control panel header bar alongside View Switcher and Shift Balance controls.
+   - Add a "Batch Assign" button in `FourWeekCalendarView.tsx` top control panel toolbar.
+   - Ensure clicking the upper panel button opens `BatchAssignModal` (`setIsBatchAssignOpen(true)`).
+
+3. **R3 Remediation (Relocate Manage Group to Admin Menu)**:
+   - In `SchedulerDashboard.tsx`: REMOVE the "Manage Groups" button from the upper control panel toolbar bar and REMOVE `GroupManagerModal` rendering.
+   - In `AdminDashboard.tsx`: Import `GroupManagerModal`, add a prominent "Manage Groups" button into `AdminDashboard.tsx` control panel/tabs, and wire `GroupManagerModal` state/rendering inside `AdminDashboard.tsx`, so group management is strictly housed within administrative settings.
+
+4. **R4 Remediation (Fixed Centered Positioning for Modals & Popups on Scroll)**:
+   - Standardize backdrop container overlay styling across ALL modals (`BatchAssignModal.tsx`, `GroupManagerModal.tsx`, `DayInspectorPanel.tsx`, `TouchContextMenu.tsx`, `RotationRearrangerModal.tsx`, and inline modals in `SchedulerDashboard.tsx`, `UserDashboard.tsx`, `AdminDashboard.tsx`).
+   - Enforce fixed centered overlay wrapper CSS:
+     `fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`
+   - Replace opaque `bg-slate-950` backdrops with translucent `bg-black/50 backdrop-blur-sm`.
+   - Update `DayInspectorPanel.tsx` from side drawer layout (`flex justify-end`) to fixed centered modal layout (`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`).
+
+5. **Build Verification**:
+   - Run `npm run build` and verify exit code 0 and 0 errors.
+
+Write your changes summary and handoff report in `c:\DEV\DutyFlow\.agents\implementer_3\changes.md` and `handoff.md`, then send a message back to parent when completed.

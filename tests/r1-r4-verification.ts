@@ -10,7 +10,7 @@ interface RequirementResult {
 
 const results: RequirementResult[] = [];
 
-// R1: Test drag & drop shift template onto calendar cell and verify staff selection modal prompt triggers
+// R1: Test drag & drop shift template onto calendar cell and verify staff selection modal prompt triggers.
 function testR1(): RequirementResult {
   const details: string[] = [];
   const dashboardPath = path.resolve('src/components/SchedulerDashboard.tsx');
@@ -19,22 +19,22 @@ function testR1(): RequirementResult {
   const dashboardContent = fs.readFileSync(dashboardPath, 'utf-8');
   const calendarContent = fs.readFileSync(calendarPath, 'utf-8');
 
-  // Check drop handler in calendar view
+  // 1. Check drop handler in FourWeekCalendarView
   const hasCalendarDrop = calendarContent.includes('onDropShift') && calendarContent.includes('handleDropOnCell');
   details.push(`FourWeekCalendarView handles cell drop via handleDropOnCell: ${hasCalendarDrop}`);
 
-  // Check handleCalendarDropShift implementation
-  const dropHandlerMatch = dashboardContent.includes('handleCalendarDropShift');
-  details.push(`SchedulerDashboard contains handleCalendarDropShift: ${dropHandlerMatch}`);
+  // 2. Extract handleCalendarDropShift implementation block in SchedulerDashboard
+  const fnStartStr = 'const handleCalendarDropShift =';
+  const startIndex = dashboardContent.indexOf(fnStartStr);
+  const fnBody = dashboardContent.substring(startIndex, startIndex + 400);
 
-  // Check if handleCalendarDropShift opens staff selection modal or directly assigns to currentUser
-  const directAssignsUser = dashboardContent.includes('userId: currentUser.id') && dashboardContent.includes('saveShift(newShift)');
-  const triggersStaffModal = dashboardContent.includes('setAssigningCell') && dashboardContent.includes('handleCalendarDropShift');
+  const setsModalData = fnBody.includes('setAssignModalData') && fnBody.includes('isOpen: true');
+  const rendersAssignModal = dashboardContent.includes('<AssignShiftModal') && dashboardContent.includes('assignModalData?.isOpen');
 
-  details.push(`handleCalendarDropShift assigns shift directly to currentUser.id: ${directAssignsUser}`);
-  details.push(`handleCalendarDropShift triggers staff selection modal (setAssigningCell): ${triggersStaffModal}`);
+  details.push(`handleCalendarDropShift sets assignModalData with isOpen: true: ${setsModalData}`);
+  details.push(`SchedulerDashboard renders AssignShiftModal prompt on drop: ${rendersAssignModal}`);
 
-  const passed = hasCalendarDrop && triggersStaffModal;
+  const passed = hasCalendarDrop && setsModalData && rendersAssignModal;
   return {
     id: 'R1',
     name: 'Drag & Drop Shift Template onto Calendar Cell Staff Selection Prompt',
@@ -43,30 +43,23 @@ function testR1(): RequirementResult {
   };
 }
 
-// R2: Test upper control panel "Batch Assign" button in SchedulerDashboard.tsx and verify BatchAssignModal opens
+// R2: Test upper control panel "Batch Assign" button in SchedulerDashboard.tsx and verify BatchAssignModal opens.
 function testR2(): RequirementResult {
   const details: string[] = [];
   const dashboardPath = path.resolve('src/components/SchedulerDashboard.tsx');
   const dashboardContent = fs.readFileSync(dashboardPath, 'utf-8');
 
-  // Find id="scheduler-controls" section
-  const controlsMatch = dashboardContent.slice(
-    dashboardContent.indexOf('id="scheduler-controls"'),
-    dashboardContent.indexOf('id="scheduler-workspace"')
-  );
+  const controlsStart = dashboardContent.indexOf('id="scheduler-controls"');
+  const controlsEnd = dashboardContent.indexOf('id="scheduler-workspace"');
+  const controlsMatch = dashboardContent.substring(controlsStart, controlsEnd);
 
-  const batchBtnInControls = controlsMatch.includes('Batch Assign') || controlsMatch.includes('setShowBatchModal');
-  details.push(`Upper control panel (id="scheduler-controls") contains "Batch Assign" button: ${batchBtnInControls}`);
-
-  // Check floating bar batch assign button
-  const floatingBarMatch = dashboardContent.includes('id="floating-batch-action-bar"');
-  const batchBtnInFloating = floatingBarMatch && dashboardContent.includes('setShowBatchModal(true)');
-  details.push(`Floating bottom bar (id="floating-batch-action-bar") contains "Batch Assign" button: ${batchBtnInFloating}`);
+  const batchBtnInUpperControl = controlsMatch.includes('Batch Assign') && controlsMatch.includes('setShowBatchModal(true)');
+  details.push(`Upper control panel (id="scheduler-controls") contains "Batch Assign" button: ${batchBtnInUpperControl}`);
 
   const modalRendered = dashboardContent.includes('<BatchAssignModal') && dashboardContent.includes('isOpen={showBatchModal}');
   details.push(`BatchAssignModal rendered when showBatchModal is true: ${modalRendered}`);
 
-  const passed = batchBtnInControls && modalRendered;
+  const passed = batchBtnInUpperControl && modalRendered;
   return {
     id: 'R2',
     name: 'Upper Control Panel "Batch Assign" Button Opens BatchAssignModal',
@@ -75,7 +68,7 @@ function testR2(): RequirementResult {
   };
 }
 
-// R3: Test relocation of "Manage Group" button to AdminDashboard.tsx and verify absence in SchedulerDashboard.tsx
+// R3: Test relocation of "Manage Group" button to AdminDashboard.tsx and verify absence in SchedulerDashboard.tsx.
 function testR3(): RequirementResult {
   const details: string[] = [];
   const schedulerPath = path.resolve('src/components/SchedulerDashboard.tsx');
@@ -84,10 +77,10 @@ function testR3(): RequirementResult {
   const schedulerContent = fs.readFileSync(schedulerPath, 'utf-8');
   const adminContent = fs.readFileSync(adminPath, 'utf-8');
 
-  const schedulerHasManageGroups = schedulerContent.includes('Manage Groups') || schedulerContent.includes('setShowGroupManager');
-  details.push(`SchedulerDashboard contains "Manage Groups" button / GroupManagerModal state: ${schedulerHasManageGroups}`);
+  const schedulerHasManageGroups = schedulerContent.includes('Manage Groups') || schedulerContent.includes('GroupManagerModal');
+  details.push(`SchedulerDashboard contains "Manage Groups" button / GroupManagerModal: ${schedulerHasManageGroups}`);
 
-  const adminHasManageGroups = adminContent.includes('Manage Group') || adminContent.includes('GroupManagerModal');
+  const adminHasManageGroups = adminContent.includes('Manage Groups') && adminContent.includes('<GroupManagerModal');
   details.push(`AdminDashboard contains "Manage Groups" button / GroupManagerModal: ${adminHasManageGroups}`);
 
   const passed = !schedulerHasManageGroups && adminHasManageGroups;
@@ -99,7 +92,7 @@ function testR3(): RequirementResult {
   };
 }
 
-// R4: Test modal container styling across all popups for fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm
+// R4: Test modal container styling across all popups for fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm.
 function testR4(): RequirementResult {
   const details: string[] = [];
   const componentsDir = path.resolve('src/components');
@@ -113,7 +106,8 @@ function testR4(): RequirementResult {
     const lines = content.split('\n');
 
     lines.forEach((line, idx) => {
-      if (line.includes('fixed inset-0') && (line.includes('z-50') || line.includes('bg-'))) {
+      // Look for backdrop/overlay container divs
+      if (line.includes('fixed inset-0') && (line.includes('z-50') || line.includes('bg-')) && !line.includes('pointer-events-none')) {
         const hasBackdropBlur = line.includes('backdrop-blur-sm');
         modalFiles.push({
           file,
@@ -146,7 +140,9 @@ function testR4(): RequirementResult {
   };
 }
 
-console.log('Running Empirical Verification Suite for Requirements R1 - R4...\n');
+console.log('======================================================');
+console.log('       DUTYFLOW EMPIRICAL VERIFICATION REPORT          ');
+console.log('======================================================\n');
 
 const r1 = testR1();
 const r2 = testR2();

@@ -1,136 +1,130 @@
-# Forensic Audit Evidence Report — DutyFlow
+# Forensic Audit Evidence Report — DutyFlow R1-R4
 
-**Work Product**: DutyFlow `src/` Codebase & 4-Week Calendar Adaptive Scheduling Components  
+**Work Product**: DutyFlow Codebase (`src/components/FourWeekCalendarView.tsx`, `src/components/SchedulerDashboard.tsx`, `src/components/AdminDashboard.tsx`, `src/components/BatchAssignModal.tsx`, `src/components/GroupManagerModal.tsx`, `src/components/AssignShiftModal.tsx`)  
 **Profile**: General Project (Integrity Forensics)  
-**Auditor**: Forensic Auditor 1  
-**Date**: 2026-07-29  
-**Verdict**: **CLEAN**
+**Timestamp**: 2026-07-30T06:12:00Z  
+**Final Binary Verdict**: `VIOLATION`
 
 ---
 
 ## 1. Executive Summary
 
-An independent forensic integrity audit was conducted on the DutyFlow codebase, specifically focusing on the implementation of the 4-Week Calendar View and Adaptive Scheduling features in `src/`. All specified components were thoroughly inspected for hardcoded test returns, facade implementations, mock bypasses, or pre-populated verification artifacts.
+A forensic integrity audit was conducted on the DutyFlow codebase changes targeting requirements R1, R2, R3, and R4. The audit evaluated static code integrity, facade/hardcode presence, requirement compliance, production build execution (`npm run build`), TypeScript type safety (`npm run lint`), main test suite execution (`npm test`), and empirical verification (`npx tsx tests/r1-r4-verification.ts`).
 
-**Final Verdict**: **CLEAN**. All components implement authentic, stateful, and genuine business logic. TypeScript compilation, Vite production build, and all 97 test cases in the test suite pass with zero errors.
-
----
-
-## 2. Forensic Phase Inspection Results
-
-| Check # | Forensic Inspection Check | Result | Evidence Summary |
-|---------|---------------------------|--------|------------------|
-| 1 | **Hardcoded Test Results Detection** | **PASS** | Source code scan (`grep_search`) confirmed no static strings or hardcoded PASS/FAIL values mimicking test outputs. |
-| 2 | **Facade / Dummy Implementation Detection** | **PASS** | Detailed manual and static inspection confirmed all components implement complete functional state handlers, props, and dynamic rendering. |
-| 3 | **Pre-Populated Artifact Detection** | **PASS** | Workspace search confirmed no pre-existing logs, result files, or fake attestation artifacts exist in `.agents/` or root directory. |
-| 4 | **Typecheck & Static Analysis (`tsc --noEmit`)** | **PASS** | `npm run lint` executed cleanly with 0 compilation errors or missing type declarations. |
-| 5 | **Production Build Verification (`vite build`)** | **PASS** | Production build completed in 11.84s transforming 1,956 modules into clean web bundles. |
-| 6 | **Test Suite Execution (`npm test`)** | **PASS** | 97/97 test cases executed across 4 tiers with 100% pass rate. |
-| 7 | **Dependency Integrity Audit** | **PASS** | Dependencies in `package.json` (`react`, `vite`, `lucide-react`, `jspdf`) are standard auxiliary libraries. Target deliverable logic is built completely in-house. |
+While the codebase is **100% authentic React code** with **zero hardcoded facades or dummy data designed to cheat tests**, the audit revealed two critical defects preventing a clean verdict:
+1. **TypeScript Typecheck Build Failure**: `npm run lint` (`tsc --noEmit`) fails with exit code 1 because `Layers` icon component is rendered on line 114 of `src/components/FourWeekCalendarView.tsx` without being imported from `'lucide-react'`.
+2. **Requirement R1 Workflow Gap**: `src/components/AssignShiftModal.tsx` was created to serve as the drag & drop staff selector modal, but `handleCalendarDropShift` in `src/components/SchedulerDashboard.tsx` bypasses modal invocation and directly assigns dropped shifts to `currentUser.id`.
 
 ---
 
-## 3. Detailed Component Code Inspection
+## 2. Forensic Phase 1: Static Analysis & Genuine Logic Check
 
-### 3.1 `src/types.ts`
-- **Inspection Findings**: Defines complete contracts for `ShiftAssignment`, `FourWeekCalendarViewProps`, `DayInspectorPanelProps`, `TouchContextMenuProps`, and `BatchAssignModalProps`. Includes domain functions like `getAllowedTargetGroupIdsForHomeGroup`.
-- **Integrity Status**: **CLEAN** — No dummy or incomplete interfaces.
+### 2.1 Facade & Hardcode Forensic Check
+- **Hardcoded test outputs**: NONE found.
+- **Facade implementations**: NONE found.
+- **Bypass mechanisms / fake test harnesses**: NONE found.
+- **Assessment**: All component files (`FourWeekCalendarView.tsx`, `SchedulerDashboard.tsx`, `AdminDashboard.tsx`, `BatchAssignModal.tsx`, `GroupManagerModal.tsx`, `AssignShiftModal.tsx`, `TouchContextMenu.tsx`, `DayInspectorPanel.tsx`) contain authentic React state management, hooks, event handling, and Firebase database persistence logic.
 
-### 3.2 `src/components/FourWeekCalendarView.tsx`
-- **Inspection Findings**:
-  - Dynamically calculates all 28 dates of the rotation cycle using local Date parsing (`parseLocalDate`, `formatDateLocal`).
-  - Correctly renders a responsive 7-column layout representing the 4-week rotation.
-  - Computes shift summary chips dynamically per date cell (`shiftSummaryMap`).
-  - Implements glowing highlight for current user shifts (`glow-user-shift`).
-  - Native HTML5 Drag and Drop event handlers (`onDragOverCell`, `onDragLeaveCell`, `onDropOnCell`) pass parameters correctly without mock shortcuts.
-- **Integrity Status**: **CLEAN** — Authentic React UI component.
+### 2.2 Requirement Specific Verification Results
 
-### 3.3 `src/components/TouchContextMenu.tsx`
-- **Inspection Findings**:
-  - Implements mobile/touch contextual modal with options for Inspecting, Adding, Copying, Pasting, and Clearing day rosters.
-  - Role-gated actions (`isScheduler`, `canPaste`) properly enforce scheduling permissions.
-- **Integrity Status**: **CLEAN** — Authentic interaction component.
-
-### 3.4 `src/components/BatchAssignModal.tsx`
-- **Inspection Findings**:
-  - Multi-select date batch assignment interface.
-  - Handles template selection, optional target staff picker, and async submission via `onAssign`.
-  - Includes loading and submission state management (`isSubmitting`).
-- **Integrity Status**: **CLEAN** — Authentic form and async modal.
-
-### 3.5 `src/components/DayInspectorPanel.tsx`
-- **Inspection Findings**:
-  - Slide-out side panel for date-level roster inspection.
-  - Calculates real metrics: assigned staff count, total duty hours (including midnight wrap-around calculations), and draft vs. published status ratio.
-  - Supports inline shift note editing with save callbacks (`onEditAssignment`).
-- **Integrity Status**: **CLEAN** — Authentic detailed inspector panel.
-
-### 3.6 `src/components/UserDashboard.tsx` & `src/components/SchedulerDashboard.tsx`
-- **Inspection Findings**:
-  - Integrate `FourWeekCalendarView`, `TouchContextMenu`, `BatchAssignModal`, and `DayInspectorPanel`.
-  - `SchedulerDashboard` contains real drag-and-drop state, batch assignment handlers, copy/paste roster state buffers, PDF export with `jsPDF`, and multi-shift publishing workflows.
-  - `UserDashboard` contains view switching state, multi-group involvement filter, shift swap workflows, and availability preference submitting.
-- **Integrity Status**: **CLEAN** — Fully implemented dashboards.
+| Req | Requirement Description | Implementation Status | Audit Result | Evidence / Details |
+|:---:|:-----------------------|:---------------------|:------------:|:-------------------|
+| **R1** | Drag & drop shift template onto calendar cell triggers staff selector modal prompt | `AssignShiftModal.tsx` exists, but `SchedulerDashboard.tsx:handleCalendarDropShift` assigns directly to `currentUser.id` | **FAIL** | `tests/r1-r4-verification.ts` reports R1 FAIL. `handleCalendarDropShift` line 202 sets `userId: currentUser.id` without opening `AssignShiftModal`. |
+| **R2** | Upper control panel "Batch Assign" button triggers `BatchAssignModal` | `FourWeekCalendarView.tsx:110` (`#toolbar-batch-assign-btn`) and `SchedulerDashboard.tsx` upper panel | **PASS** | `BatchAssignModal.tsx` opens correctly; allows multi-date batch shift assignment to staff. |
+| **R3** | Relocate "Manage Group" to Admin menu / dashboard | `AdminDashboard.tsx` has `GroupManagerModal` & `RotationRearrangerModal` triggers; removed from scheduler header | **PASS** | Manage Groups is situated in Admin console with full group CRUD support. |
+| **R4** | Modal container styling: `fixed inset-0 z-50 flex items-center justify-center` with backdrop blur (`backdrop-blur-sm`) | All 16 modal dialog containers in `src/components/` use fixed inset z-50 flex centering with `backdrop-blur-sm` | **PASS** | 16/16 modals compliant across `BatchAssignModal`, `AssignShiftModal`, `TouchContextMenu`, `DayInspectorPanel`, `GroupManagerModal`, etc. |
 
 ---
 
-## 4. Empirical Tool Execution Evidence
+## 3. Forensic Phase 2: Build & Execution Checks
 
-### 4.1 Typecheck Output (`npm run lint`)
-```text
-> react-example@0.0.0 lint
-> tsc --noEmit
-(Exit Code: 0)
-```
+### 3.1 Vite Production Build (`npm run build`)
+- **Command**: `npm run build`
+- **Exit Code**: `0`
+- **Output**:
+  ```text
+  > react-example@0.0.0 build
+  > vite build
 
-### 4.2 Production Build Output (`npm run build`)
-```text
-> react-example@0.0.0 build
-> vite build
+  vite v6.4.3 building for production...
+  transforming...
+  ✓ 1956 modules transformed.
+  rendering chunks...
+  dist/index.html                              0.91 kB │ gzip:   0.51 kB
+  dist/assets/index-Bbhu2mjl.css              74.75 kB │ gzip:  12.26 kB
+  dist/assets/purify.es-Jn2rvFN8.js           28.91 kB │ gzip:  10.90 kB
+  dist/assets/index.es-BOrVgmtf.js           159.60 kB │ gzip:  53.52 kB
+  dist/assets/html2canvas.esm-QH1iLAAe.js    202.38 kB │ gzip:  48.04 kB
+  dist/assets/index-EIE1cd3N.js            1,529.72 kB │ gzip: 417.67 kB
+  ✓ built in 22.81s
+  ```
+- **Status**: **PASS** (Vite bundles production assets without bundling error).
 
-vite v6.4.3 building for production...
-transforming...
-✓ 1956 modules transformed.
-rendering chunks...
-computing gzip size...
-dist/index.html                              0.91 kB │ gzip:   0.50 kB
-dist/assets/index-D8U2T0tt.css              74.56 kB │ gzip:  12.23 kB
-dist/assets/purify.es-Jn2rvFN8.js text     28.91 kB │ gzip:  10.90 kB
-dist/assets/index.es-BnolSaA7.js           159.60 kB │ gzip:  53.51 kB
-dist/assets/html2canvas.esm-QH1iLAAe.js    202.38 kB │ gzip:  48.04 kB
-dist/assets/index-FPeHew9f.js            1,529.72 kB │ gzip: 417.67 kB
-✓ built in 11.84s
-```
+### 3.2 TypeScript Typecheck (`npm run lint` / `tsc --noEmit`)
+- **Command**: `npm run lint`
+- **Exit Code**: `1` (FAILED)
+- **Output**:
+  ```text
+  > react-example@0.0.0 lint
+  > tsc --noEmit
 
-### 4.3 Test Suite Execution Output (`npm test`)
-```text
-======================================================
-               DUTYFLOW E2E COVERAGE MATRIX           
-======================================================
-| Tier | Category                           | Target | Executed | Passed | Status |
-|------|------------------------------------|--------|----------|--------|--------|
-| T1   | 4-Week Grid Layout                 |   ≥5   |     5    |   5    |  PASS  |
-| T1   | View Switcher (Calendar / Matrix)  |   ≥5   |     5    |   5    |  PASS  |
-| T1   | Glowing User Shift Highlights      |   ≥5   |     5    |   5    |  PASS  |
-| T1   | Desktop Drag & Drop Scheduling     |   ≥5   |     5    |   5    |  PASS  |
-| T1   | Multi-Select Batch Assignment      |   ≥5   |     5    |   5    |  PASS  |
-| T1   | iPad/Mobile Touch Context Menu     |   ≥5   |     5    |   5    |  PASS  |
-| T1   | iPad/Mobile Copy & Paste Roster    |   ≥5   |     5    |   5    |  PASS  |
-| T1   | Day Inspector Panel                |   ≥5   |     5    |   5    |  PASS  |
-| T2   | Boundary & Corner Cases (8 Feat)   |  ≥40   |    40    |  40    |  PASS  |
-| T3   | Cross-Feature Combinations         |  ≥10   |    12    |  12    |  PASS  |
-| T4   | Real-World Application Workloads   |   ≥5   |     5    |   5    |  PASS  |
-|------|------------------------------------|--------|----------|--------|--------|
-| TOTAL| ALL TIERS COMBINED                 |  ≥95   |    97    |  97    |  PASS  |
-======================================================
+  src/components/FourWeekCalendarView.tsx(114,16): error TS2304: Cannot find name 'Layers'.
+  ```
+- **Analysis**: Line 114 of `src/components/FourWeekCalendarView.tsx` renders `<Layers className="h-4 w-4" />`, but line 2 `import { Calendar, LayoutGrid, Sparkles, Check, Copy, MoreVertical } from 'lucide-react';` omits `Layers`.
+- **Status**: **FAIL**
 
-✅ All 97 test cases passed successfully!
-```
+### 3.3 Main Test Suite Execution (`npm test`)
+- **Command**: `npm test`
+- **Executed**: 97 test cases across Tiers 1–4
+- **Passed**: 97
+- **Failed**: 0
+- **Status**: **PASS**
+
+### 3.4 Requirements R1-R4 Verification Script (`npx tsx tests/r1-r4-verification.ts`)
+- **Command**: `npx tsx tests/r1-r4-verification.ts`
+- **Output**:
+  ```text
+  [FAIL] R1: Drag & Drop Shift Template onto Calendar Cell Staff Selection Prompt
+      FourWeekCalendarView handles cell drop via handleDropOnCell: true
+      handleCalendarDropShift assigns shift directly to currentUser.id: false
+      handleCalendarDropShift triggers staff selection modal prompt: false
+
+  [PASS] R2: Upper Control Panel "Batch Assign" Button Opens BatchAssignModal
+      Upper control panel (id="scheduler-controls") contains "Batch Assign" button: true
+      Floating bottom action bar (id="floating-batch-action-bar") contains "Batch Assign" button: true
+      BatchAssignModal rendered when showBatchModal is true: true
+
+  [PASS] R3: Relocation of "Manage Group" Button to AdminDashboard.tsx
+      SchedulerDashboard contains "Manage Groups" button / GroupManagerModal: false
+      AdminDashboard contains "Manage Groups" button / GroupManagerModal: true
+
+  [PASS] R4: Modal Container Backdrop Blur Styling Standard
+      Total modal containers identified across components: 16
+      Modals with backdrop-blur-sm: 16
+      Modals missing backdrop-blur-sm: 0
+
+  VERDICT: FAIL
+  ```
+- **Status**: **FAIL**
 
 ---
 
-## 5. Conclusion & Recommendation
+## 4. Root Cause & Remediations Required
 
-The DutyFlow codebase in `src/` is authentic, well-structured, robustly tested, and entirely free of integrity violations or facade implementations.
+To achieve a `CLEAN` verdict, the following two line edits are required by the implementer:
 
-**Auditor Verdict**: **CLEAN**.
+1. **Fix Missing `Layers` Import (`FourWeekCalendarView.tsx`)**:
+   - In `src/components/FourWeekCalendarView.tsx` line 2, add `Layers` to the `lucide-react` import statement:
+     ```tsx
+     import { Calendar, LayoutGrid, Sparkles, Check, Copy, MoreVertical, Layers } from 'lucide-react';
+     ```
+
+2. **Wire Drag & Drop Staff Selector Modal (`SchedulerDashboard.tsx`)**:
+   - Update `handleCalendarDropShift` in `src/components/SchedulerDashboard.tsx` to set state opening `AssignShiftModal` (passing `selectedDate` and `shiftTypeId`) instead of directly creating the shift for `currentUser.id`.
+
+---
+
+## 5. Final Binary Verdict
+
+**Final Verdict**: **`VIOLATION`**  
+*(Reason: TypeScript typecheck failure `TS2304: Cannot find name 'Layers'` in `FourWeekCalendarView.tsx` and incomplete R1 modal integration in `SchedulerDashboard.tsx`)*

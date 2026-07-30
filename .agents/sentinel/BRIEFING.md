@@ -1,4 +1,4 @@
-# BRIEFING — 2026-07-30T13:10:30Z
+# BRIEFING — 2026-07-30T13:12:30Z
 
 ## Mission
 Coordinate the execution of DutyFlow UI/UX fixes and verification by dispatching and monitoring the Project Orchestrator, running status crons, and running a Victory Audit upon project completion.
@@ -32,4 +32,4 @@ Coordinate the execution of DutyFlow UI/UX fixes and verification by dispatching
 - c:\DEV\DutyFlow\.agents\orchestrator\plan.md — Orchestrator Plan
 - c:\DEV\DutyFlow\.agents\orchestrator\progress.md — Orchestrator Progress
 - c:\DEV\DutyFlow\.agents\orchestrator\handoff.md — Orchestrator Handoff
-- c:\DEV\DutyFlow\.agents\victory_auditor\README.md — Victory Auditor Directory
+- c:\DEV\DutyFlow\.agents\victory_auditor\progress.md — Victory Auditor Progress

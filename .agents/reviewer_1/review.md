@@ -1,110 +1,130 @@
-# Code Quality & Architectural Review Report: 4-Week Calendar View & Adaptive Scheduling
+# Quality & Adversarial Review Report
 
-**Reviewer**: Reviewer 1 (Roles: reviewer, critic)  
-**Date**: 2026-07-29  
-**Target Milestone**: 4-Week Calendar View & Adaptive Scheduling (M1, M2, M3, M4)  
-**Verdict**: **APPROVE**  
-
----
-
-## 1. Executive Summary
-
-A comprehensive code quality, architectural, and security integrity review was conducted for DutyFlow's 4-Week Calendar View and Adaptive Scheduling feature set. The implementation covers all requirements specified in `PROJECT.md` across 8 core target files (`src/types.ts`, `src/index.css`, `src/components/FourWeekCalendarView.tsx`, `src/components/TouchContextMenu.tsx`, `src/components/BatchAssignModal.tsx`, `src/components/DayInspectorPanel.tsx`, `src/components/UserDashboard.tsx`, and `src/components/SchedulerDashboard.tsx`).
-
-Both automated test execution (97/97 tests passing across Tiers 1-4), static type checking (`tsc --noEmit` passing clean), and Vite production bundle build (`vite build` completed in 14.6s) were independently verified.
+**Target**: DutyFlow UI/UX Implementation Requirements (R1-R5)  
+**Reviewer**: Reviewer 1 (Quality Reviewer & Adversarial Critic)  
+**Date**: 2026-07-30  
+**Final Verdict**: `REJECT`
 
 ---
 
-## 2. Integrity Violation Audit
+## Final Verdict & Executive Summary
 
-Per reviewer guidelines, an adversarial audit was performed to detect any integrity violations:
-- **Hardcoded test results / expected outputs**: Verified. Test suite (`tests/run-tests.ts`, `tests/test-framework.ts`, and `tests/calendar-model.ts`) performs real assertion matching on live state and grid math. No hardcoded return values or test bypasses exist.
-- **Dummy or facade implementations**: Verified. Components implement real state machines, HTML5 drag-and-drop event handlers, context menu dispatchers, multi-select date buffers, and Firestore persistence calls.
-- **Shortcuts / Task delegation bypass**: Verified. Pure React & Tailwind CSS implementation without external heavy UI dependencies.
-- **Fabricated verification outputs**: Verified. Clean builds and test runs executed directly via system CLI tool.
-- **Self-certifying work**: Independent verification conducted by tracing source code lines and executing build tools.
+**Verdict**: **REJECT / REQUEST_CHANGES**
 
-**Integrity Audit Result**: **PASS** (Zero integrity violations found).
+The implementation fails 3 out of 4 functional & UI requirements (R1, R2, R3) and demonstrates major non-conformance in R4 modal styling. Only R5 (Build Verification) passed. 
+
+Specifically, R1 contains a critical **INTEGRITY VIOLATION**: drag & drop onto calendar date cells completely bypasses staff selection and hardcodes the assignment to `currentUser.id`.
 
 ---
 
-## 3. Detailed Requirement Verification Findings
+## Detailed Findings by Requirement
 
-### 3.1 4-Week Grid Layout & 100% Container Width (Zero Side-Scroll)
-- **Files**: `src/index.css` (lines 138-150), `src/components/FourWeekCalendarView.tsx` (lines 85, 154-328).
-- **Verification**:
-  - `src/index.css` defines `.four-week-grid-container` with `width: 100%; max-width: 100%; overflow-x: hidden;` and `html, body { overflow-x: clip; }`.
-  - `.four-week-grid` uses `display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); width: 100%; gap: 0.5rem;`.
-  - Date cells in `FourWeekCalendarView.tsx` are rendered inside `grid grid-cols-7 gap-2 w-full overflow-hidden`.
-  - Content within cells (chips, badges, time indicators) uses Tailwind `truncate`, `min-w-0`, and flex clipping to guarantee zero horizontal scrollbar triggers across all viewport breakpoints (desktop, tablet, mobile).
-- **Status**: **VERIFIED — PASS**
-
-### 3.2 Glowing User Shift Highlights ("YOU: [Shift Name]")
-- **Files**: `src/index.css` (lines 122-135), `src/components/FourWeekCalendarView.tsx` (lines 170 border-b & 263-281).
-- **Verification**:
-  - `index.css` defines `@keyframes glowPulse` animating `box-shadow` from `rgba(251, 191, 36, 0.4)` to `rgba(251, 191, 36, 0.8)` and border colors, attached to class `.glow-user-shift`.
-  - In `FourWeekCalendarView.tsx`, matching logic evaluates both `a.userId` (case-insensitive & trimmed match against `currentUserId`) and `a.isCurrentUser`.
-  - When present, a prominent golden chip is rendered:
+### 1. Requirement R1: Direct Drag & Drop Staff Selector Modal
+- **Status**: ❌ **FAIL (CRITICAL — INTEGRITY VIOLATION)**
+- **Requirement**: Drag & drop onto calendar date cells opens a staff selection modal/prompt to assign staff to that shift for that specific date.
+- **Observed Behavior**:
+  - In `FourWeekCalendarView.tsx`: `handleDropOnCell` extracts `shiftTypeId` and calls `onDropShift(shiftTypeId, dateStr)`.
+  - In `SchedulerDashboard.tsx`: `onDropShift` is bound to `handleCalendarDropShift`:
     ```tsx
-    <div className="glow-user-shift rounded-lg p-1.5 bg-amber-500/20 border-2 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.6)] flex items-center justify-between">
-      <Sparkles className="h-3 w-3 text-amber-400 shrink-0" />
-      <span className="font-extrabold text-[10px] sm:text-xs tracking-wide truncate">
-        YOU: {currentUserShift.shiftTypeName}
-      </span>
-    </div>
+    const handleCalendarDropShift = async (templateId: string, dateStr: string) => {
+      ...
+      const newShift: Shift = {
+        id: `shift-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        userId: currentUser.id,
+        date: dateStr,
+        templateId,
+        status: 'draft',
+        assignedBy: currentUser.id,
+        targetGroupId: temp?.groupId || 'group-universal'
+      };
+      await saveShift(newShift);
+      ...
+    };
     ```
-- **Status**: **VERIFIED — PASS**
-
-### 3.3 Desktop Drag-and-Drop & Multi-Select Date Batch Assignment
-- **Files**: `src/components/FourWeekCalendarView.tsx`, `src/components/BatchAssignModal.tsx`, `src/components/SchedulerDashboard.tsx`.
-- **Verification**:
-  - **Drag-and-Drop**: Sidebar shift templates in `SchedulerDashboard.tsx` set `draggable` and `onDragStart`. `FourWeekCalendarView.tsx` implements `onDragOver`, `onDragLeave`, and `onDrop`. Dropping extracts `shiftTypeId` from `dataTransfer` payload and triggers `onDropShift`, updating calendar state and triggering database save.
-  - **Multi-Select Batch Assign**: Clicking date cells with Shift / Ctrl / Cmd modifier keys or tapping in multi-select mode invokes `onToggleSelectDate`, building a `selectedDates` buffer. Batch assign toolbar opens `BatchAssignModal.tsx` displaying date badges summary, shift template selection, optional target staff picker, and executing batch creation via `onAssign`.
-- **Status**: **VERIFIED — PASS**
-
-### 3.4 iPad / Mobile Touch Context Menu & Copy-Paste Day Roster State Machine
-- **Files**: `src/components/TouchContextMenu.tsx`, `src/components/SchedulerDashboard.tsx`, `src/components/UserDashboard.tsx`.
-- **Verification**:
-  - Tapping cell context trigger or date cell opens `TouchContextMenu.tsx` backdrop popover.
-  - Context menu actions: "Inspect Day Roster", "Add Shift to Day", "Copy Day Roster", "Paste Day Roster", "Clear Day Roster".
-  - Copy/Paste State Machine: `handleCopyDayRoster` captures source date string (`copiedRosterDate`). `FourWeekCalendarView.tsx` renders a glowing badge `Roster Copied: YYYY-MM-DD` when set. `TouchContextMenu.tsx` evaluates `canPaste` (`copiedRosterDate && copiedRosterDate !== touchMenuDate`) to enable the paste button. `handlePasteDayRoster` duplicate-creates all roster assignments onto the target date as draft shifts.
-- **Status**: **VERIFIED — PASS**
-
-### 3.5 Day Inspector Panel Expansion / Collapse & Staff Roster Breakdown
-- **Files**: `src/components/DayInspectorPanel.tsx`, `src/components/UserDashboard.tsx`, `src/components/SchedulerDashboard.tsx`.
-- **Verification**:
-  - Sliding right drawer panel with fixed backdrop overlay expands when `isOpen` and `selectedDate` are populated.
-  - Renders metric header counters: Assigned Staff count, Total Hours (computed via `calculateShiftHours` accounting for midnight wrap-around), and Status Ratio (Draft vs Published).
-  - Displays detailed staff roster cards with color-coded template indicators, group tag badges, duty hours, inline note editor (for schedulers), and shift removal controls.
-  - Dismisses cleanly on backdrop tap, ESC, or Close button click.
-- **Status**: **VERIFIED — PASS**
+- **Why it failed**: No staff selection modal or prompt is opened. The drop event directly assigns the shift to `currentUser.id`. This is a facade implementation / shortcut that bypasses staff selection entirely.
+- **Remediation**: `handleCalendarDropShift` must trigger a staff selection modal (or open an inline prompt/modal) allowing the user to select which staff member to assign to the dropped shift template for `dateStr`.
 
 ---
 
-## 4. Code Quality & Architecture Metrics
-
-| Metric | Assessment | Detail |
-|---|---|---|
-| **TypeScript Conformance** | Exceptional | Strict type safety across all props interfaces in `src/types.ts`. `tsc --noEmit` passed with 0 errors. |
-| **Bundle & Build Health** | Optimal | Vite build compiled successfully in 14.6s producing clean CSS and JS assets. |
-| **Test Coverage** | Comprehensive | 97/97 tests passing across Tiers 1-4 (Grid, Switcher, Glowing highlights, Drag & Drop, Batch, Touch, Copy/Paste, Day Inspector, Boundaries, Scenarios). |
-| **Styling & UX** | Excellent | Tailwind CSS 4 theme integration, custom `@theme` tokens, glassmorphism UI, `@keyframes glowPulse` animation, high contrast dark theme palette. |
-
----
-
-## 5. Review Findings & Suggestions
-
-### Findings
-- **No Critical/Major/Minor issues found**. The code is clean, modular, and adheres to DutyFlow architecture rules.
-
-### Defensive Suggestions (Nice-to-have for future iterations)
-1. **Keyboard Accessibility for Touch Context Menu**: On non-touch desktop browsers, consider adding an explicit keyboard shortcut (e.g. Space / Enter on cell focus) to trigger the context menu for keyboard-only users.
-2. **Chunk Size Optimization**: Vite build output noted large chunk bundle (>500 kB). Consider applying dynamic `import()` code-splitting for PDF export libraries (`jspdf`) in future optimization passes.
+### 2. Requirement R2: Upper Panel Batch Assign Trigger
+- **Status**: ❌ **FAIL (CRITICAL)**
+- **Requirement**: A clear, prominent "Batch Assign" button is present in the upper control panel bar and opens `BatchAssignModal`.
+- **Observed Behavior**:
+  - In `SchedulerDashboard.tsx` (lines 800–865), the upper control panel bar includes buttons for View Switching (`4-Week Calendar` / `Matrix`), `Shift Balance`, `Export Schedule (PDF)`, `Manage Groups`, and `Publish Month Drafts`.
+  - "Batch Assign" is **completely absent** from the upper control panel bar.
+  - "Batch Assign" only exists inside a floating bottom action bar (`floating-batch-action-bar` at lines 1570–1603), which is conditionally rendered ONLY when `selectedDates.length > 0`.
+- **Why it failed**: Users cannot trigger Batch Assign directly from the main control panel header bar as required.
+- **Remediation**: Add a prominent "Batch Assign" button into the upper control panel bar in `SchedulerDashboard.tsx` (and/or `FourWeekCalendarView.tsx`) that opens `BatchAssignModal`.
 
 ---
 
-## 6. Verdict
+### 3. Requirement R3: Relocate Manage Group to Admin Menu
+- **Status**: ❌ **FAIL (CRITICAL)**
+- **Requirement**: "Manage Group" (Group Manager) access trigger was removed from Scheduler Dashboard and is strictly housed within `AdminDashboard.tsx`.
+- **Observed Behavior**:
+  - In `SchedulerDashboard.tsx` (lines 845–849):
+    ```tsx
+    <button
+      onClick={() => setShowGroupManager(true)}
+      className="flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-4 py-2 rounded-xl text-xs font-semibold..."
+    >
+      <Users className="h-3.5 w-3.5" /> Manage Groups
+    </button>
+    ```
+    `SchedulerDashboard.tsx` still renders `GroupManagerModal` at lines 1487–1492.
+  - In `AdminDashboard.tsx`: `GroupManagerModal` is **not imported nor rendered** anywhere.
+- **Why it failed**: The trigger was neither removed from `SchedulerDashboard.tsx` nor added to `AdminDashboard.tsx`.
+- **Remediation**: Remove the "Manage Groups" button and `GroupManagerModal` from `SchedulerDashboard.tsx`. Import and house `GroupManagerModal` (or its trigger) strictly inside `AdminDashboard.tsx`.
 
-**FINAL VERDICT**: **APPROVE**  
+---
 
-All components and adaptive scheduling controls for DutyFlow's 4-Week Calendar View are fully verified, robust, architecturally sound, and ready for deployment.
+### 4. Requirement R4: Fixed Centered Positioning for Modals & Popups on Scroll
+- **Status**: ❌ **FAIL (MAJOR DEFECT)**
+- **Requirement**: Verify modal overlays (`BatchAssignModal.tsx`, `GroupManagerModal.tsx`, `DayInspectorPanel.tsx`, `TouchContextMenu.tsx`, `RotationRearrangerModal.tsx`, etc.) use fixed centered overlay styling (`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`) so popups stay centered in the viewport during scrolling.
+- **Observed Behavior**:
+  1. `BatchAssignModal.tsx`: Uses `fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in`. (Missing `overflow-y-auto` on backdrop overlay wrapper; uses `bg-slate-950/80`).
+  2. `GroupManagerModal.tsx`: Uses `fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50 overflow-y-auto`. (Uses 100% opaque `bg-slate-950` with no backdrop blur `backdrop-blur-sm` or translucency `bg-black/50`).
+  3. `DayInspectorPanel.tsx`: Uses `fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm...`. (Configured as a side drawer `flex justify-end` instead of a centered modal `items-center justify-center p-4`, missing `overflow-y-auto`).
+  4. `TouchContextMenu.tsx`: Uses `fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm...`. (Missing `overflow-y-auto` on backdrop container).
+  5. `RotationRearrangerModal.tsx`: Uses `fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50 overflow-y-auto`. (Uses 100% opaque `bg-slate-950` backdrop with no `backdrop-blur-sm` or translucency).
+  6. Inline Modals in `SchedulerDashboard.tsx` (`assigning-modal`, `shift-detail-modal`, `conflict-modal`, `publish-confirm-modal`, `shift-balance-modal`): All use opaque `bg-slate-950` instead of translucent `bg-black/50 backdrop-blur-sm`.
+- **Why it failed**: Lack of uniform overlay styling. Opaque backdrops (`bg-slate-950`) completely hide underlying context, and missing `overflow-y-auto` on wrappers causes vertical clipping or scroll bugs on smaller screens.
+- **Remediation**: Standardize modal backdrop containers across all modal components to use `fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`.
+
+---
+
+### 5. Requirement R5: Build Verification
+- **Status**: ✅ **PASS**
+- **Command**: `npm run build`
+- **Output**:
+  ```text
+  vite v6.4.3 building for production...
+  ✓ 1956 modules transformed.
+  rendering chunks...
+  dist/index.html                              0.91 kB
+  dist/assets/index-BiZM6yvF.css              74.90 kB
+  dist/assets/purify.es-Jn2rvFN8.js           28.91 kB
+  dist/assets/index.es-CGF9PM_j.js           159.60 kB
+  dist/assets/html2canvas.esm-QH1iLAAe.js    202.38 kB
+  dist/assets/index-DnM0axwF.js            1,530.30 kB
+  ✓ built in 19.86s
+  ```
+- **Result**: 0 build errors.
+
+---
+
+## Summary Matrix
+
+| Requirement | Description | Status | Severity / Note |
+|---|---|---|---|
+| **R1** | Direct Drag & Drop Staff Selector Modal | ❌ FAIL | Critical (Integrity Violation — auto-assigns to current user) |
+| **R2** | Upper Panel Batch Assign Trigger | ❌ FAIL | Critical (Missing upper panel trigger button) |
+| **R3** | Relocate Manage Group to Admin Menu | ❌ FAIL | Critical (Not removed from Scheduler, missing in Admin) |
+| **R4** | Fixed Centered Positioning for Modals | ❌ FAIL | Major Defect (Inconsistent backdrops & missing scroll styling) |
+| **R5** | Build Verification (`npm run build`) | ✅ PASS | 0 build errors (19.86s) |
+
+---
+
+## Final Rationale & Next Steps
+
+Work is **REJECTED**. The implementation contains shortcuts, incomplete requirements, and UI non-conformance. Implementers must fix R1, R2, R3, and R4 before re-submitting for review.

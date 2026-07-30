@@ -321,7 +321,7 @@ export default function PooledShiftsDashboard({
 
       {/* Shift detail modal */}
       {activeShiftMenu && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div>
               <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider ${

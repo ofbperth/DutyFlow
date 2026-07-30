@@ -26,9 +26,12 @@ import {
   updateUserGroupAssignment,
   saveRotationAssignments,
   deleteRotationAssignment,
-  resetUserGroupAssignmentsForNewRotation
+  resetUserGroupAssignmentsForNewRotation,
+  saveDoctorGroup,
+  deleteDoctorGroup
 } from '../firebase';
 import RotationRearrangerModal from './RotationRearrangerModal';
+import GroupManagerModal from './GroupManagerModal';
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -90,8 +93,9 @@ export default function AdminDashboard({
   const [virtualUserToDelete, setVirtualUserToDelete] = useState<User | null>(null);
   const [realUserToDelete, setRealUserToDelete] = useState<User | null>(null);
 
-  // Rotation Rearranger Modal state
+  // Rotation Rearranger & Group Manager Modal states
   const [showRearrangeModal, setShowRearrangeModal] = useState(false);
+  const [showGroupManager, setShowGroupManager] = useState(false);
   const [isSavingRotation, setIsSavingRotation] = useState(false);
 
   // Schedule Period state
@@ -109,7 +113,7 @@ export default function AdminDashboard({
   }, [schedulePeriod]);
 
   useEffect(() => {
-    if (templateToDelete || virtualUserToDelete || realUserToDelete || showRearrangeModal) {
+    if (templateToDelete || virtualUserToDelete || realUserToDelete || showRearrangeModal || showGroupManager) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -117,7 +121,7 @@ export default function AdminDashboard({
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [templateToDelete, virtualUserToDelete, realUserToDelete, showRearrangeModal]);
+  }, [templateToDelete, virtualUserToDelete, realUserToDelete, showRearrangeModal, showGroupManager]);
 
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -430,7 +434,8 @@ export default function AdminDashboard({
             <p className="text-xs text-slate-300 mt-1">Configure predefined templates, statutory holidays, doctor groups, and hospital staff memberships.</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowRearrangeModal(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 text-xs font-semibold transition shadow"> <RefreshCw className="h-3.5 w-3.5" /> Rearrange Rotation Staff </button>
+            <button onClick={() => setShowGroupManager(true)} className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 text-xs font-semibold transition shadow cursor-pointer" id="admin-manage-groups-btn"> <Users className="h-3.5 w-3.5" /> Manage Groups </button>
+            <button onClick={() => setShowRearrangeModal(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 text-xs font-semibold transition shadow cursor-pointer"> <RefreshCw className="h-3.5 w-3.5" /> Rearrange Rotation Staff </button>
             <span className="self-start inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 px-3 py-1 text-xs font-mono text-indigo-300">
               <Layers className="h-3.5 w-3.5" />
               ADMIN PRIVILEGES ACTIVE
@@ -932,7 +937,7 @@ export default function AdminDashboard({
 
       {/* Delete Template Confirmation Modal */}
       {templateToDelete && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="delete-template-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" id="delete-template-modal">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl shrink-0">
@@ -971,7 +976,7 @@ export default function AdminDashboard({
 
       {/* Delete Virtual User Confirmation Modal */}
       {virtualUserToDelete && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="delete-virtual-user-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" id="delete-virtual-user-modal">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl shrink-0">
@@ -1010,7 +1015,7 @@ export default function AdminDashboard({
 
       {/* Delete Active User Confirmation Modal */}
       {realUserToDelete && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="delete-real-user-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" id="delete-real-user-modal">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl shrink-0">
@@ -1055,6 +1060,23 @@ export default function AdminDashboard({
           periodId={schedulePeriod?.id || 'current'}
           onSave={handleSaveRotation}
           onClose={() => setShowRearrangeModal(false)}
+        />
+      )}
+
+      {/* Group Manager Modal (R3) */}
+      {showGroupManager && (
+        <GroupManagerModal
+          groups={groups}
+          onSave={async (g) => {
+            await saveDoctorGroup(g);
+            await onRefresh();
+            setShowGroupManager(false);
+          }}
+          onDelete={async (id) => {
+            await deleteDoctorGroup(id);
+            await onRefresh();
+          }}
+          onClose={() => setShowGroupManager(false)}
         />
       )}
     </div>

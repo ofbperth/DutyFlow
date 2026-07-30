@@ -61,7 +61,7 @@ export default function TouchContextMenu({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto animate-fade-in"
       onClick={onClose}
       id="touch-context-menu-backdrop"
     >

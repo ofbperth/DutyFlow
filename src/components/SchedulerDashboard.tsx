@@ -23,9 +23,9 @@ import FourWeekCalendarView from './FourWeekCalendarView';
 import TouchContextMenu from './TouchContextMenu';
 import BatchAssignModal from './BatchAssignModal';
 import DayInspectorPanel from './DayInspectorPanel';
+import AssignShiftModal from './AssignShiftModal';
 import jsPDF from 'jspdf';
 import { saveShift, deleteShift, checkDoubleShift, saveDoctorGroup, deleteDoctorGroup, updateUserGroupAssignment } from '../firebase';
-import GroupManagerModal from './GroupManagerModal';
 
 interface SchedulerDashboardProps {
   currentUser: User;
@@ -55,9 +55,9 @@ export default function SchedulerDashboard({
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 6, 1)); // Default to July 2026
   
-  // Modal states for Groups and Rotations
-  const [showGroupManager, setShowGroupManager] = useState(false);
+  // Modal states for Rotations & Shift Assignments
   const [showShiftBalance, setShowShiftBalance] = useState(false);
+  const [assignModalData, setAssignModalData] = useState<{ isOpen: boolean; selectedDate: string; shiftTypeId: string } | null>(null);
 
   // Modal State for Click-to-Assign
   const [assigningCell, setAssigningCell] = useState<{ userId: string; dateStr: string } | null>(null);
@@ -100,13 +100,13 @@ export default function SchedulerDashboard({
   const [showTouchMenu, setShowTouchMenu] = useState<boolean>(false);
 
   React.useEffect(() => {
-    if (assigningCell || activeShiftMenu || conflictCell || showPublishConfirm || showGroupManager || showShiftBalance) {
+    if (assigningCell || activeShiftMenu || conflictCell || showPublishConfirm || assignModalData || showShiftBalance) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [assigningCell, activeShiftMenu, conflictCell, showPublishConfirm, showGroupManager, showShiftBalance]);
+  }, [assigningCell, activeShiftMenu, conflictCell, showPublishConfirm, assignModalData, showShiftBalance]);
 
 
   const handleOpenShiftMenu = (shift: Shift | null) => {
@@ -196,24 +196,11 @@ export default function SchedulerDashboard({
       triggerStatus('Invalid shift template dropped.', 'error');
       return;
     }
-    const temp = templates.find(t => t.id === templateId);
-    const newShift: Shift = {
-      id: `shift-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      userId: currentUser.id,
-      date: dateStr,
-      templateId,
-      status: 'draft',
-      assignedBy: currentUser.id,
-      targetGroupId: temp?.groupId || 'group-universal'
-    };
-
-    try {
-      await saveShift(newShift);
-      await onRefresh();
-      triggerStatus('Shift assigned to calendar cell.');
-    } catch (err: any) {
-      triggerStatus(err.message || 'Failed to drop shift', 'error');
-    }
+    setAssignModalData({
+      isOpen: true,
+      selectedDate: dateStr,
+      shiftTypeId: templateId
+    });
   };
 
   // Multi-Select Date Selection Toggle
@@ -819,6 +806,17 @@ export default function SchedulerDashboard({
             </button>
           </div>
 
+          {/* Prominent Upper Panel Batch Assign Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowBatchModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/30 ring-2 ring-indigo-400/40 cursor-pointer transition-all hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+            id="upper-panel-batch-assign-btn"
+          >
+            <Layers className="h-4 w-4" />
+            <span>Batch Assign</span>
+          </button>
+
           <button
             onClick={() => setShowShiftBalance(true)}
             className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 px-4 py-2 rounded-xl text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
@@ -841,12 +839,6 @@ export default function SchedulerDashboard({
 
           {(currentUser.role === 'admin' || currentUser.role === 'scheduler') && (
             <>
-              <button
-                onClick={() => setShowGroupManager(true)}
-                className="flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-4 py-2 rounded-xl text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-              >
-                <Users className="h-3.5 w-3.5" /> Manage Groups
-              </button>
               <button
                 disabled={isPublishing}
                 onClick={handlePublishAll}
@@ -997,6 +989,7 @@ export default function SchedulerDashboard({
               isScheduler={true}
               onDropShift={handleCalendarDropShift}
               onBatchAssign={handleBatchAssignShifts}
+              onOpenBatchAssign={() => setShowBatchModal(true)}
               onCopyDayRoster={handleCopyDayRoster}
               onPasteDayRoster={handlePasteDayRoster}
               copiedRosterDate={copiedRosterDate}
@@ -1260,9 +1253,9 @@ export default function SchedulerDashboard({
     </div>
   </div>
 
-      {/* Assignment Modal for Mobile/Click */}
+      {/* Assigning Cell Modal Backdrop (R4) */}
       {assigningCell && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="assigning-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" id="assigning-modal">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div>
               <h3 className="text-sm font-bold text-white font-display">Assign Shift Assignment</h3>
@@ -1320,9 +1313,9 @@ export default function SchedulerDashboard({
         </div>
       )}
 
-      {/* Shift detail modal */}
+      {/* Shift detail modal backdrop (R4) */}
       {activeShiftMenu && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="shift-detail-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" id="shift-detail-modal">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div>
               <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider ${
@@ -1397,9 +1390,9 @@ export default function SchedulerDashboard({
         </div>
       )}
 
-      {/* Conflict Warning Modal */}
+      {/* Conflict Warning Modal Backdrop (R4) */}
       {conflictCell && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="conflict-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" id="conflict-modal">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-amber-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl shrink-0">
@@ -1438,9 +1431,9 @@ export default function SchedulerDashboard({
         </div>
       )}
 
-      {/* Publish Confirmation Modal */}
+      {/* Publish Confirmation Modal Backdrop (R4) */}
       {showPublishConfirm && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto" id="publish-confirm-modal">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" id="publish-confirm-modal">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-blue-500/30 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-xl shrink-0">
@@ -1482,26 +1475,24 @@ export default function SchedulerDashboard({
           </div>
         </div>
       )}
-      {/* Modals for Groups & Assignments */}
-      {showGroupManager && (
-        <GroupManagerModal
-          groups={groups}
-          onSave={async (g) => {
-            await saveDoctorGroup(g);
-            await onRefresh();
-            setShowGroupManager(false);
-          }}
-          onDelete={async (id) => {
-            await deleteDoctorGroup(id);
-            await onRefresh();
-          }}
-          onClose={() => setShowGroupManager(false)}
-        />
-      )}
+      {/* Direct Drag & Drop Staff Selector Modal (R1) */}
+      <AssignShiftModal
+        isOpen={Boolean(assignModalData?.isOpen)}
+        onClose={() => setAssignModalData(null)}
+        selectedDate={assignModalData?.selectedDate || null}
+        shiftTypeId={assignModalData?.shiftTypeId || null}
+        templates={filteredTemplates}
+        users={users}
+        groups={groups}
+        rotationAssignments={rotationAssignments}
+        onAssign={async (userId, dateStr, templateId) => {
+          await assignShift(userId, dateStr, templateId);
+        }}
+      />
 
-      {/* Shift Balance Overview Modal */}
+      {/* Shift Balance Overview Modal Backdrop (R4) */}
       {showShiftBalance && (
-        <div className="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
           <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-[90vw] w-full space-y-4 shadow-2xl flex flex-col">
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <h3 className="text-lg font-bold text-white font-display flex items-center gap-2">
@@ -1622,7 +1613,11 @@ export default function SchedulerDashboard({
           setShowTouchMenu(false);
         }}
         onAddShift={(date) => {
-          setAssigningCell({ userId: currentUser.id, dateStr: date });
+          setAssignModalData({
+            isOpen: true,
+            selectedDate: date,
+            shiftTypeId: filteredTemplates[0]?.id || ''
+          });
           setShowTouchMenu(false);
         }}
         onCopyRoster={handleCopyDayRoster}
@@ -1662,7 +1657,11 @@ export default function SchedulerDashboard({
         onClose={() => setSelectedDate(null)}
         isScheduler={true}
         onAddAssignment={(dateStr) => {
-          setAssigningCell({ userId: currentUser.id, dateStr });
+          setAssignModalData({
+            isOpen: true,
+            selectedDate: dateStr,
+            shiftTypeId: filteredTemplates[0]?.id || ''
+          });
         }}
         onEditAssignment={async (assignmentId, notes) => {
           const targetShift = shifts.find(s => s.id === assignmentId);

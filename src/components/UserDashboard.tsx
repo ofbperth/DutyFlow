@@ -447,7 +447,7 @@ export default function UserDashboard({
     <div className="space-y-6 font-sans max-w-7xl mx-auto px-2 md:px-0 py-4" id="user-dashboard-root">
       {/* Mandatory Group Selection Modal */}
       {isUnassigned && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
           <div className="bg-slate-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl relative m-auto max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-white mb-2 font-display">Welcome!</h2>
             <p className="text-sm text-slate-300 mb-6">
