@@ -146,10 +146,13 @@ export default function App() {
             await saveUser(profile);
           }
 
+          // Set current user FIRST so the app can render even if seeding fails
           setCurrentUser(profile);
 
-          // Now that user is authenticated, seed and load all database entities
-          await seedInitialData();
+          // Only run seed for admin/scheduler to avoid permission-denied writes for regular users
+          if (profile.role === 'admin' || profile.role === 'scheduler') {
+            await seedInitialData();
+          }
           await loadAllData();
         } catch (err: any) {
           console.error('Error handling auth state change:', err);

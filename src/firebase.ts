@@ -120,9 +120,13 @@ export const updateUserGroupAssignment = async (userId: string, periodId: string
 export const saveUser = async (user: User): Promise<void> => {
   await setDoc(doc(db, 'users', user.id), user);
   // Auto-assign to 'unassigned' if no group assignment exists for 'current' period
-  const assignments = await getRotationAssignments('current');
-  if (!assignments.some(a => a.userId === user.id)) {
-    await updateUserGroupAssignment(user.id, 'current', 'unassigned');
+  try {
+    const assignments = await getRotationAssignments('current');
+    if (!assignments.some(a => a.userId === user.id)) {
+      await updateUserGroupAssignment(user.id, 'current', 'unassigned');
+    }
+  } catch (err) {
+    console.warn('Could not auto-assign rotation group for user (will be prompted to select):', err);
   }
 };
 

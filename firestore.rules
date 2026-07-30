@@ -114,7 +114,15 @@ service cloud.firestore {
     // 11. Rotation Assignments collection
     match /rotationAssignments/{assignmentId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isScheduler();
+      allow create: if isAuthenticated() && (
+        isAdmin() || isScheduler() ||
+        (request.resource.data.userId == request.auth.uid)
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || isScheduler() ||
+        (resource.data.userId == request.auth.uid)
+      );
+      allow delete: if isAdmin() || isScheduler();
     }
   }
 }
