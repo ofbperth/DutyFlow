@@ -1,16 +1,9 @@
-# Progress Log - Reviewer 1
+# Progress Log
 
-Last visited: 2026-07-29T22:49:23+07:00
+Last visited: 2026-07-30T06:10:48Z
 
-- [x] Workspace and initialization setup
-- [x] Codebase & test suite baseline verification
-- [x] Review src/types.ts & src/index.css
-- [x] Review src/components/FourWeekCalendarView.tsx
-- [x] Review src/components/TouchContextMenu.tsx & Copy/Paste State Machine
-- [x] Review src/components/BatchAssignModal.tsx
-- [x] Review src/components/DayInspectorPanel.tsx
-- [x] Review src/components/UserDashboard.tsx & src/components/SchedulerDashboard.tsx
-- [x] Perform Adversarial Stress-Testing & Integrity Violation audit
-- [x] Run test suite & build
-- [x] Compile review.md and handoff.md
-- [x] Notify parent orchestrator
+- Inspected R1 (Drag & Drop Staff Selector): Found `handleCalendarDropShift` directly assigns shift to `currentUser.id` without opening a staff selection modal/prompt.
+- Inspected R2 (Upper Panel Batch Assign): Found no "Batch Assign" button in the upper control panel bar (only present in floating bottom bar when dates are selected).
+- Inspected R3 (Relocate Manage Group to Admin Menu): Found "Manage Groups" button is still in `SchedulerDashboard.tsx` and `GroupManagerModal` is NOT implemented in `AdminDashboard.tsx`.
+- Inspected R4 (Fixed Centered Positioning for Modals): Found inconsistencies across modals (`bg-slate-950` opaque vs `bg-black/50 backdrop-blur-sm`, missing `overflow-y-auto` on backdrop containers in `BatchAssignModal` and `TouchContextMenu`, `DayInspectorPanel` as side panel).
+- Triggered R5 (`npm run build`). Awaiting build output.

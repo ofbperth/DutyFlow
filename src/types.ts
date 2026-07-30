@@ -149,6 +149,7 @@ export interface FourWeekCalendarViewProps {
   isScheduler?: boolean;
   onDropShift?: (shiftTypeId: string, date: string) => void;
   onBatchAssign?: (dates: string[], shiftTypeId: string) => void;
+  onOpenBatchAssign?: () => void;
   onCopyDayRoster?: (sourceDate: string) => void;
   onPasteDayRoster?: (targetDate: string) => void;
   copiedRosterDate?: string | null;

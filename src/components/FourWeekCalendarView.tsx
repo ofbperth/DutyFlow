@@ -13,6 +13,7 @@ export default function FourWeekCalendarView({
   isScheduler = false,
   onDropShift,
   onBatchAssign,
+  onOpenBatchAssign,
   onCopyDayRoster,
   onPasteDayRoster,
   copiedRosterDate,
@@ -102,6 +103,19 @@ export default function FourWeekCalendarView({
 
         {/* View Switcher Toggle Buttons & Copied Roster Indicator */}
         <div className="flex items-center gap-3">
+          {onOpenBatchAssign && (
+            <button
+              type="button"
+              onClick={onOpenBatchAssign}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/25 ring-1 ring-indigo-400/40 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              id="toolbar-batch-assign-btn"
+              title="Open Batch Assignment Modal"
+            >
+              <Layers className="h-4 w-4" />
+              <span>Batch Assign</span>
+            </button>
+          )}
+
           {copiedRosterDate && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold animate-pulse" id="copied-roster-badge">
               <Copy className="h-3.5 w-3.5" />

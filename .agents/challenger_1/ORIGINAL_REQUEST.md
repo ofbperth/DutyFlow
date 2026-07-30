@@ -1,14 +1,13 @@
-## 2026-07-29T15:48:03Z
-You are Challenger 1 for the DutyFlow project.
-Your working directory is c:\DEV\DutyFlow\.agents\challenger_1. Create this directory if it does not exist.
+## 2026-07-30T06:09:57Z
+You are Challenger 1, working in directory `c:\DEV\DutyFlow\.agents\challenger_1`.
 
-Your Task:
-1. Empirically verify the implementation and test suite of DutyFlow.
-2. Execute the verification commands:
-   - TypeScript compilation: `npm run lint` (`npx tsc --noEmit`)
-   - Production bundle build: `npm run build` (`npx vite build`)
-   - E2E Test Suite: `npm test` (`npx tsx tests/run-tests.ts`)
-3. Verify that all 97 test cases across Tier 1, Tier 2, Tier 3, and Tier 4 pass with a 100% pass rate.
-4. Test adversarial corner cases (e.g. invalid dates, empty rosters, rapid view toggles).
-5. Document your verification results in c:\DEV\DutyFlow\.agents\challenger_1\challenge.md and handoff report at c:\DEV\DutyFlow\.agents\challenger_1\handoff.md.
-6. Notify parent orchestrator when complete.
+Your task is to conduct empirical verification and stress testing of the 4 UI/UX requirements:
+
+1. **R1**: Test drag & drop shift template onto calendar cell and verify staff selection modal prompt triggers.
+2. **R2**: Test upper control panel "Batch Assign" button in `SchedulerDashboard.tsx` and verify `BatchAssignModal` opens.
+3. **R3**: Test relocation of "Manage Group" button to `AdminDashboard.tsx` and verify absence in `SchedulerDashboard.tsx`.
+4. **R4**: Test modal container styling across all popups for `fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm`.
+5. **Build**: Run `npm run build` and any test runners. Verify zero errors.
+
+Write your empirical test results into `c:\DEV\DutyFlow\.agents\challenger_1\challenge.md` and `handoff.md`. Include a clear final verdict: `PASS` or `FAIL`.
+Send a message back to parent when completed.

@@ -1,46 +1,38 @@
-# BRIEFING — 2026-07-29T15:49:30Z
+# BRIEFING — 2026-07-30T06:10:00Z
 
 ## Mission
-Empirically verify implementation, run lint/build/E2E test suite (97 tests), and stress-test DutyFlow with adversarial corner cases.
+Empirical verification and stress testing of 4 UI/UX requirements (R1, R2, R3, R4) and build verification for DutyFlow.
 
 ## 🔒 My Identity
 - Archetype: EMPIRICAL CHALLENGER
 - Roles: critic, specialist
 - Working directory: c:\DEV\DutyFlow\.agents\challenger_1
-- Original parent: af7e74a0-b9c8-49ad-b7e5-4b4e3beab871
-- Milestone: Verification and Adversarial Stress Testing
+- Original parent: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
+- Milestone: UI/UX Requirement Verification
 - Instance: 1 of 1
 
 ## 🔒 Key Constraints
-- Review-only — do NOT modify implementation code (report findings as bugs/findings)
-- Empirically verify everything — run commands, write adversarial test scripts if needed
-- Perform adversarial stress testing on corner cases
+- Empirically test requirements with code execution and static/dynamic checks
+- Stress test assumptions, find failure modes, test edge cases
+- Write results to challenge.md and handoff.md
+- Include clear final verdict: PASS or FAIL
 
 ## Current Parent
-- Conversation ID: af7e74a0-b9c8-49ad-b7e5-4b4e3beab871
-- Updated: 2026-07-29T15:49:30Z
+- Conversation ID: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
+- Updated: 2026-07-30T06:10:00Z
 
-## Attack Surface
-- **Hypotheses tested**: 
-  - TypeScript type checking: PASS (0 errors)
-  - Production build: PASS (0 errors, 1956 modules transformed)
-  - E2E Test suite: PASS (97/97 tests passed, 100% pass rate)
-  - Adversarial corner cases (invalid dates, leap years, 10k mass assignments, 1k rapid D&D ID collisions, 10k rapid view toggles, inverted date ranges, copy/paste snapshot immutability, self-paste prevention, RBAC role flip, user ID normalization): PASS (18/18 stress tests passed)
-- **Vulnerabilities found**: None. System is resilient to adversarial inputs and boundary conditions.
-- **Untested angles**: Live remote Firebase Firestore network calls, physical hardware iPad digitizers.
-
-## Loaded Skills
-- None explicitly assigned
+## Review Scope
+- **Files to review**: SchedulerDashboard.tsx, AdminDashboard.tsx, BatchAssignModal.tsx, ShiftTemplateModal / Staff Selection modal components, modal containers
+- **Requirements**:
+  - R1: Drag & drop shift template onto calendar cell triggers staff selection modal prompt.
+  - R2: Upper control panel "Batch Assign" button in `SchedulerDashboard.tsx` opens `BatchAssignModal`.
+  - R3: "Manage Group" button relocated to `AdminDashboard.tsx` and absent from `SchedulerDashboard.tsx`.
+  - R4: Modal container styling across popups includes `fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm`.
+  - Build: `npm run build` and tests pass without errors.
 
 ## Key Decisions Made
-- Executed `npm run lint`, `npm run build`, and `npm test`.
-- Created and executed custom adversarial stress harness `tests/adversarial-stress.ts`.
-- Documented full verification findings in `c:\DEV\DutyFlow\.agents\challenger_1\challenge.md` and `c:\DEV\DutyFlow\.agents\challenger_1\handoff.md`.
+- Initial setup completed.
 
 ## Artifact Index
-- c:\DEV\DutyFlow\.agents\challenger_1\ORIGINAL_REQUEST.md — Original user prompt
-- c:\DEV\DutyFlow\.agents\challenger_1\BRIEFING.md — Persistent briefing state
-- c:\DEV\DutyFlow\.agents\challenger_1\progress.md — Liveness heartbeat
-- c:\DEV\DutyFlow\.agents\challenger_1\challenge.md — Challenge and stress test results report
-- c:\DEV\DutyFlow\.agents\challenger_1\handoff.md — 5-component handoff report
-- c:\DEV\DutyFlow\tests\adversarial-stress.ts — Adversarial stress test script
+- c:\DEV\DutyFlow\.agents\challenger_1\ORIGINAL_REQUEST.md — Original prompt
+- c:\DEV\DutyFlow\.agents\challenger_1\BRIEFING.md — Persistent state index

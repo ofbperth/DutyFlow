@@ -1,61 +1,48 @@
-# BRIEFING — 2026-07-29T22:49:20+07:00
+# BRIEFING — 2026-07-30T06:10:00Z
 
 ## Mission
-Conduct a thorough code quality & architectural review and adversarial stress-testing of DutyFlow's 4-Week Calendar View & Adaptive Scheduling implementation.
+Conduct a thorough code & UI quality review of the 4 UI/UX requirements implemented in DutyFlow (R1, R2, R3, R4) and run Build Verification (R5), producing review.md and handoff.md with a final verdict of APPROVE or REJECT.
 
 ## 🔒 My Identity
-- Archetype: reviewer / critic
+- Archetype: Reviewer & Adversarial Critic
 - Roles: reviewer, critic
 - Working directory: c:\DEV\DutyFlow\.agents\reviewer_1
-- Original parent: af7e74a0-b9c8-49ad-b7e5-4b4e3beab871
-- Milestone: 4-Week Calendar View & Adaptive Scheduling Review
+- Original parent: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
+- Milestone: UI/UX Quality Review
 - Instance: 1 of 1
 
 ## 🔒 Key Constraints
-- Review-only — do NOT modify implementation code
-- Check for integrity violations (hardcoded test results, facade implementations, shortcuts, fabricated verification, self-certifying work)
-- Produce evidence-based review in review.md and handoff.md
-- Notify parent orchestrator via send_message when complete
+- Review-only — do NOT modify implementation code.
+- Write reports to c:\DEV\DutyFlow\.agents\reviewer_1\review.md and handoff.md.
+- Send message back to parent when completed.
+- Detect integrity violations, facade implementations, hardcoded outputs, or unhandled failure modes.
 
 ## Current Parent
-- Conversation ID: af7e74a0-b9c8-49ad-b7e5-4b4e3beab871
-- Updated: 2026-07-29T22:49:20+07:00
+- Conversation ID: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
+- Updated: 2026-07-30T06:10:00Z
 
 ## Review Scope
-- **Files to review**:
-  - `src/types.ts`
-  - `src/index.css`
-  - `src/components/FourWeekCalendarView.tsx`
-  - `src/components/TouchContextMenu.tsx`
-  - `src/components/BatchAssignModal.tsx`
-  - `src/components/DayInspectorPanel.tsx`
-  - `src/components/UserDashboard.tsx`
-  - `src/components/SchedulerDashboard.tsx`
-- **Interface contracts**: `PROJECT.md`
-- **Review criteria**: correctness, style, zero horizontal scroll, glowing user shift highlights, drag-and-drop & multi-select batch assign, mobile touch context menu & copy/paste state machine, day inspector panel, integrity check.
-
-## Review Checklist
-- **Items reviewed**: All 8 target files, `PROJECT.md`, test runner, calendar state engine model, test suites Tiers 1-4
-- **Verdict**: APPROVE
-- **Unverified claims**: none
-
-## Attack Surface
-- **Hypotheses tested**: 
-  - Fake test runner / hardcoded passes -> falsified (real assertions verified)
-  - Grid horizontal overflow -> falsified (CSS clip & flex/grid minmax boundaries verified)
-  - Touch context menu copy/paste state machine corruption -> falsified (canPaste logic verified)
-  - Type errors or broken build -> falsified (tsc & vite build verified clean)
-- **Vulnerabilities found**: 0 integrity violations, 0 functional regressions
-- **Untested angles**: none
+- **Files to review**: `FourWeekCalendarView.tsx`, `SchedulerDashboard.tsx`, `AdminDashboard.tsx`, `BatchAssignModal.tsx`, `GroupManagerModal.tsx`, `DayInspectorPanel.tsx`, `TouchContextMenu.tsx`, `RotationRearrangerModal.tsx`, and any related modal/component files.
+- **Requirements**:
+  - R1: Direct Drag & Drop Staff Selector Modal on calendar date cells.
+  - R2: Upper Panel Batch Assign Trigger opening BatchAssignModal.
+  - R3: Relocate Manage Group trigger to Admin Menu (strictly in AdminDashboard.tsx, removed from SchedulerDashboard.tsx).
+  - R4: Fixed Centered Positioning for Modals & Popups on Scroll (`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`).
+  - R5: Build verification (`npm run build`).
 
 ## Key Decisions Made
-- Conducted full code inspection, typecheck (`tsc --noEmit`), build check (`npm run build`), test suite pass (`npm test`), and adversarial integrity audit.
-- Issued verdict: APPROVE.
-- Wrote detailed review report to `review.md` and handoff report to `handoff.md`.
+- Starting independent review by inspecting codebase files, checking implementation details, verifying build, and evaluating failure modes.
 
 ## Artifact Index
-- c:\DEV\DutyFlow\.agents\reviewer_1\ORIGINAL_REQUEST.md — Original request
-- c:\DEV\DutyFlow\.agents\reviewer_1\BRIEFING.md — Working memory
-- c:\DEV\DutyFlow\.agents\reviewer_1\progress.md — Liveness heartbeat
-- c:\DEV\DutyFlow\.agents\reviewer_1\review.md — Final Review Findings & Verdict (APPROVE)
-- c:\DEV\DutyFlow\.agents\reviewer_1\handoff.md — 5-Component Handoff Report
+- `c:\DEV\DutyFlow\.agents\reviewer_1\ORIGINAL_REQUEST.md` — Original request text.
+- `c:\DEV\DutyFlow\.agents\reviewer_1\BRIEFING.md` — Briefing file.
+
+## Review Checklist
+- **Items reviewed**: Pending initial inspection
+- **Verdict**: Pending
+- **Unverified claims**: R1, R2, R3, R4, R5
+
+## Attack Surface
+- **Hypotheses tested**: Pending
+- **Vulnerabilities found**: Pending
+- **Untested angles**: Drag-and-drop state, modal overflow, scrolling body locking, popup centering, typescript/build errors

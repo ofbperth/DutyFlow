@@ -1,55 +1,50 @@
-# BRIEFING — 2026-07-29T22:41:35+07:00
+# BRIEFING — 2026-07-30T06:10:00Z
 
 ## Mission
-Implement Milestone 1 - 4-Week Calendar Grid & View Switcher Component for DutyFlow.
+Implement the 4 UI/UX requirements for DutyFlow (Direct Drag & Drop Staff Selector Modal, Upper Panel Batch Assign Trigger, Relocate Manage Group to Admin Menu, Fixed Centered Positioning for Modals & Popups on Scroll) and verify build clean.
 
 ## 🔒 My Identity
 - Archetype: implementer
 - Roles: implementer, qa, specialist
 - Working directory: c:\DEV\DutyFlow\.agents\implementer_1
-- Original parent: af7e74a0-b9c8-49ad-b7e5-4b4e3beab871
-- Milestone: Milestone 1 - 4-Week Calendar Grid & View Switcher Component
+- Original parent: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
+- Milestone: UI/UX Enhancements & Refactoring
 
 ## 🔒 Key Constraints
-- Minimal change principle.
-- No dummy/hardcoded test results or integrity shortcuts.
-- Verify TypeScript compilation (`npm run lint`) and production build (`npm run build`).
+- CODE_ONLY network mode.
+- Minimal change principle. No hardcoded test results or facades.
+- All code must pass `npm run build` with 0 errors.
 
 ## Current Parent
-- Conversation ID: af7e74a0-b9c8-49ad-b7e5-4b4e3beab871
-- Updated: 2026-07-29T22:41:35+07:00
+- Conversation ID: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
+- Updated: 2026-07-30T06:10:00Z
 
 ## Task Summary
-- **What to build**: 4-Week Calendar View component, view switcher in User and Scheduler dashboards, type definitions, CSS animation utilities.
-- **Success criteria**: 7x4 responsive grid fitting 100% container width with zero horizontal side-scroll, shift summary chips, glowing user shift highlights, toggle button working in both dashboards, clean tsc & vite build.
-- **Interface contracts**: `PROJECT.md` & `analysis.md`
-- **Code layout**: `PROJECT.md` § Code Layout
+- **What to build**: 
+  1. R1: Direct Drag & Drop Staff Selector Modal in FourWeekCalendarView/SchedulerDashboard.
+  2. R2: Upper Panel Batch Assign Trigger in SchedulerDashboard and FourWeekCalendarView.
+  3. R3: Relocate Manage Group trigger to AdminDashboard.
+  4. R4: Fixed Centered Positioning for Modals & Popups on Scroll (`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`).
+- **Success criteria**: Clean compilation with `npm run build`, all 4 requirements fully functional and matching specifications.
 
 ## Key Decisions Made
-- Implemented `FourWeekCalendarView.tsx` with 28-day rotation logic, color-coded summary chips, glowing highlight badge (`glowPulse`), and zero horizontal side-scroll responsive grid.
-- Integrated `viewMode` switcher state in `UserDashboard.tsx` and `SchedulerDashboard.tsx`.
-- Verified clean build (`vite build`), TypeScript compilation (`tsc --noEmit`), and 97/97 test pass.
+- Initial setup completed.
 
 ## Artifact Index
-- c:\DEV\DutyFlow\.agents\implementer_1\ORIGINAL_REQUEST.md — Original task prompt
-- c:\DEV\DutyFlow\.agents\implementer_1\BRIEFING.md — Context briefing
-- c:\DEV\DutyFlow\.agents\implementer_1\changes.md — Changes summary
-- c:\DEV\DutyFlow\.agents\implementer_1\handoff.md — Handoff report
+- ORIGINAL_REQUEST.md — Original request instructions
+- progress.md — Heartbeat and step log
+- changes.md — Change log details
+- handoff.md — Final handoff report
 
 ## Change Tracker
-- **Files modified**:
-  - `src/types.ts`: added core interfaces
-  - `src/index.css`: added glowing animation keyframes and zero side-scroll grid classes
-  - `src/components/FourWeekCalendarView.tsx`: created 4-week 7x4 responsive grid calendar component
-  - `src/components/UserDashboard.tsx`: integrated view switcher and calendar view
-  - `src/components/SchedulerDashboard.tsx`: integrated view switcher and calendar view
-- **Build status**: PASS (`tsc --noEmit` 0 errors, `vite build` 0 errors)
+- **Files modified**: None yet
+- **Build status**: Pending
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: PASS (97/97 tests passing)
-- **Lint status**: PASS (0 errors)
-- **Tests added/modified**: 97 tests passing in suite
+- **Build/test result**: Pending
+- **Lint status**: Pending
+- **Tests added/modified**: Pending
 
 ## Loaded Skills
-None
+- None
