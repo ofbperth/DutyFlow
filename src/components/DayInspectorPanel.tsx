@@ -103,7 +103,7 @@ export default function DayInspectorPanel({
       onClick={onClose}
     >
       <div
-        className="w-full sm:w-[440px] md:w-[480px] bg-slate-900/95 border-l border-white/10 text-slate-100 shadow-2xl flex flex-col h-full overflow-hidden"
+        className="bg-slate-900 border border-white/15 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative my-auto text-slate-100"
         id="day-inspector-panel"
         onClick={(e) => e.stopPropagation()}
       >
@@ -305,7 +305,7 @@ export default function DayInspectorPanel({
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
                         rows={2}
-                        className="w-full text-xs rounded-xl bg-slate-950 border border-white/20 p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full text-xs rounded-xl bg-slate-900 border border-white/20 p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         placeholder="Enter shift notes..."
                       />
                       <div className="flex items-center justify-end gap-2">

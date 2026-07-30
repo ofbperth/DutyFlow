@@ -112,7 +112,7 @@ export default function FourWeekCalendarView({
               title="Open Batch Assignment Modal"
             >
               <Layers className="h-4 w-4" />
-              <span>Batch Assign</span>
+              <span>⚡ Batch Assign</span>
             </button>
           )}
 

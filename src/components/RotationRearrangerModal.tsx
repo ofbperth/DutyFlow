@@ -78,7 +78,7 @@ const RotationRearrangerModal: React.FC<Props> = ({ groups, users, assignments, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-      <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-950 border border-white/10 text-slate-100 rounded-xl shadow-2xl w-full max-w-6xl flex flex-col">
+      <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 text-slate-100 rounded-xl shadow-2xl w-full max-w-6xl flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-900/50 rounded-t-xl shrink-0">
           <div className="flex items-center gap-3">
