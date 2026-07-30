@@ -180,7 +180,7 @@ export default async function handler(req: any, res: any) {
       ics += `DTSTAMP:${dtstamp}\r\n`;
       ics += `DTSTART;TZID=Asia/Bangkok:${dtStartStr}\r\n`;
       ics += `DTEND;TZID=Asia/Bangkok:${dtEndStr}\r\n`;
-      ics += `SUMMARY:🩺 DutyFlow: ${templateName}\r\n`;
+      ics += `SUMMARY:🩺 ${templateName}\r\n`;
 
       if (group && group.name) {
         ics += `LOCATION:${group.name}\r\n`;
