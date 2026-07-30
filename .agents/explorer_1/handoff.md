@@ -1,50 +1,78 @@
-# Handoff Report: DutyFlow 4-Week Calendar & Adaptive Scheduling Architecture & Strategy
+# Handoff Report — Explorer 1
 
 ## 1. Observation
-1. **Repository Structure & Existing Dashboards**:
-   - `c:\DEV\DutyFlow\src\types.ts` (120 lines): Defines core data types `User`, `ShiftTemplate`, `Shift`, `Availability`, `ShiftSwap`, `Holiday`, `SchedulePeriod`, `DoctorGroup`, `GroupRotationAssignment`.
-   - `c:\DEV\DutyFlow\src\components\UserDashboard.tsx` (1338 lines): Renders doctor group matrix table starting at line 584, displaying daily assignments across `datesArray`.
-   - `c:\DEV\DutyFlow\src\components\SchedulerDashboard.tsx` (1353 lines): Renders scheduler matrix grid at line 796, with template drag source sidebar at line 696 and cell drop targets at line 516.
-   - `c:\DEV\DutyFlow\src\App.tsx` (404 lines): Manages root state, Firestore sync, and tab routing.
-   - `c:\DEV\DutyFlow\src\index.css` (121 lines): Contains Tailwind v4 import, font definitions, custom scrollbars, and `.glass` utilities.
-   - `c:\DEV\DutyFlow\package.json` (38 lines): React 19.0.1, Lucide React 0.546.0, Tailwind CSS 4.1.14, Motion 12.23.24, jsPDF 4.2.1, Vite 6.2.3, TypeScript 5.8.2.
 
-2. **Compilation & Build State**:
-   - Execution of `npm run lint` (`tsc --noEmit`): Completed with 0 errors.
-   - Execution of `npm run build` (`vite build`): Completed with 0 errors (1952 modules transformed, output `dist/assets/index-BaXwlbfr.js` 1,491 kB).
+1. **R1 Drag & Drop Handler**:
+   - In `c:\DEV\DutyFlow\src\components\FourWeekCalendarView.tsx` (lines 75-82), calendar cell drops invoke `onDropShift(shiftTypeId, dateStr)`.
+   - In `c:\DEV\DutyFlow\src\components\SchedulerDashboard.tsx` (lines 194-217), `handleCalendarDropShift` handles cell drop:
+     ```tsx
+     const handleCalendarDropShift = async (templateId: string, dateStr: string) => {
+       ...
+       const newShift: Shift = {
+         id: `shift-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+         userId: currentUser.id,
+         date: dateStr,
+         templateId,
+         ...
+       };
+       await saveShift(newShift);
+     ```
+     This auto-assigned shifts to `currentUser.id` without prompting for a staff member.
+   - `AssignShiftModal.tsx` (`c:\DEV\DutyFlow\src\components\AssignShiftModal.tsx`) already exists and accepts `isOpen`, `selectedDate`, `shiftTypeId`, `templates`, `users`, `groups`, `rotationAssignments`, and `onAssign`.
+   - `SchedulerDashboard.tsx` already imports `AssignShiftModal` and maintains `assignModalData` state (`{ isOpen: boolean; selectedDate: string; shiftTypeId: string } | null`).
 
-3. **Requirement Scope**:
-   - `PROJECT.md` & `TEST_INFRA.md`: Specify the need for a 4-Week Calendar View (`FourWeekCalendarView.tsx`), 7x4 responsive grid layout with 0 horizontal side-scroll, color-coded shift summary chips, glowing user shift highlights ("YOU: [Shift Name]"), view mode switcher ([ 📅 4-Week Calendar ] / [ 📊 Matrix ]), desktop drag & drop + multi-select batch assignment, iPad/mobile touch context menu + copy/paste day roster, and collapsible Day Inspector Panel (`DayInspectorPanel.tsx`).
+2. **R2 Upper Panel Batch Assign Trigger**:
+   - `BatchAssignModal.tsx` (`c:\DEV\DutyFlow\src\components\BatchAssignModal.tsx`) is rendered in `SchedulerDashboard.tsx` at line 1597 driven by `showBatchModal` state (`const [showBatchModal, setShowBatchModal] = useState<boolean>(false)`).
+   - In `SchedulerDashboard.tsx` (lines 795-858), upper control panel toolbar contains View Switcher, Shift Balance, Export PDF, and Publish buttons, but lacks a prominent "Batch Assign" trigger.
+   - `FourWeekCalendarView.tsx` toolbar (lines 87-139) does not currently have a Batch Assign button.
+
+3. **R3 Relocate Manage Group to Admin Menu**:
+   - `SchedulerDashboard.tsx` contains:
+     - Line 28: `import GroupManagerModal from './GroupManagerModal';`
+     - Line 59: `const [showGroupManager, setShowGroupManager] = useState(false);`
+     - Lines 845-848: `<button onClick={() => setShowGroupManager(true)}><Users className="h-3.5 w-3.5" /> Manage Groups</button>`
+     - Lines 1486-1498: `<GroupManagerModal groups={groups} onSave={...} onDelete={...} onClose={() => setShowGroupManager(false)} />`
+   - `AdminDashboard.tsx` (`c:\DEV\DutyFlow\src\components\AdminDashboard.tsx`) is the dedicated administrative workspace but currently lacks the Group Manager trigger button and modal rendering.
+   - `src/firebase.ts` already exports `saveDoctorGroup` and `deleteDoctorGroup`.
+
+4. **R4 Fixed Centered Positioning for Modals & Popups on Scroll**:
+   - Inspection of modal overlays across `src/components/`:
+     - `AdminDashboard.tsx` confirmation modals (lines 935, 974, 1013) use `fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 overflow-y-auto` (solid background without `backdrop-blur-sm`).
+     - Modals in `AssignShiftModal`, `BatchAssignModal`, `DayInspectorPanel`, `GroupManagerModal`, `RotationRearrangerModal`, `TouchContextMenu`, `SchedulerDashboard` (Assign Cell, Shift Detail, Conflict, Publish, Shift Balance), `UserDashboard`, and `PooledShiftsDashboard` use `fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`.
+     - Standardizing all backdrop overlays to `fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-fade-in` and inner dialog cards to `relative m-auto max-h-[90vh] overflow-y-auto` guarantees fixed centered alignment during viewport scrolling.
 
 ---
 
 ## 2. Logic Chain
-1. **Observation**: The current schedule rendering in `UserDashboard.tsx` and `SchedulerDashboard.tsx` uses horizontal scrolling `<table>` matrix views where dates are columns.
-2. **Step**: Adding a 4-Week Calendar View requires a 7-column x 4-row responsive grid container (`grid grid-cols-7 w-full overflow-hidden`) that calculates 28 consecutive days starting from `activePeriod.startDate`.
-3. **Step**: Shift assignments for each date need to be aggregated into summary chips by `templateId` (with template color/border and staff counts).
-4. **Step**: When the logged-in user `currentUser.id` has a shift on a given date, rendering a glowing animated highlight (`YOU: Shift Name` with `ring-2 ring-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)] animate-pulse`) gives instant personal visibility.
-5. **Step**: To support seamless switching, a toggle control (`viewMode: 'calendar' | 'matrix'`) must be added to both dashboards, allowing users to toggle between the 4-Week Calendar and Matrix views.
-6. **Step**: Desktop adaptive controls (HTML5 Drag & Drop and Multi-Select Batch Assignment) integrate directly into the calendar grid cells via `onDragOver`/`onDrop` event handlers and `selectedDates` multi-select state with `BatchAssignModal.tsx`.
-7. **Step**: Mobile and iPad adaptive controls require a `TouchContextMenu.tsx` modal triggered on cell tap, enabling Copy & Paste Day Roster operations (storing `copiedRosterDate` and cloning all shifts from source date to target date).
-8. **Step**: Detail inspection is provided by `DayInspectorPanel.tsx`, a collapsible side drawer displaying complete staff roster, shift times, notes, and scheduler edit/delete actions for any selected date.
+
+1. **R1**: Changing `handleCalendarDropShift` in `SchedulerDashboard.tsx` to set `assignModalData({ isOpen: true, selectedDate: dateStr, shiftTypeId: templateId })` replaces auto-assignment with `AssignShiftModal`. When `AssignShiftModal` opens, the user selects a staff member (`userId`), which executes `onAssign(userId, dateStr, templateId) -> assignShift(userId, dateStr, templateId)`, cleanly fulfilling R1.
+2. **R2**: Placing a gradient styled `<button>` (`bg-gradient-to-r from-indigo-500 to-purple-600`) with `<Layers className="h-4 w-4" />` in `SchedulerDashboard.tsx` upper panel and `FourWeekCalendarView.tsx` top toolbar that calls `setShowBatchModal(true)` directly exposes `BatchAssignModal` for batch operation on selected dates, fulfilling R2.
+3. **R3**: Removing `GroupManagerModal` import, `showGroupManager` state, trigger button, and modal JSX from `SchedulerDashboard.tsx`, and adding them into `AdminDashboard.tsx` header card (with `saveDoctorGroup` / `deleteDoctorGroup` from `../firebase`) strictly confines group management to administrative settings, fulfilling R3.
+4. **R4**: Audit of all 10 modal/popup views across 8 component files showed minor inconsistencies in backdrop blur and background opacity. Replacing all modal overlay classes with `fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-fade-in` and card containers with `relative m-auto max-h-[90vh] overflow-y-auto` enforces smooth centered positioning during scrolling, fulfilling R4.
 
 ---
 
 ## 3. Caveats
-- **Firebase Firestore Constraints**: Roster copy & paste executes multiple `saveShift` writes. For large rosters (e.g. >10 shifts per day), operations should use `Promise.all` or Firestore batch writes to prevent partial updates.
-- **28-Day Rotation Boundary**: When `activePeriod` is set to a 14-day cycle, the 4-week calendar grid will pad the remaining 14 days cleanly (displaying dates beyond `endDate` with dimmed empty cells or extending the rotation view).
+
+- **Scope Limit**: Read-only exploration and analysis task; source code modifications are specified for implementers.
+- **Cross-Group Permissions**: `AssignShiftModal` respects `rotationAssignments` and target group constraints when listing eligible staff members for a shift template.
 
 ---
 
 ## 4. Conclusion
-A complete, actionable technical architecture and step-by-step implementation strategy for the 4-Week Calendar & Adaptive Scheduling project has been formulated and documented in `c:\DEV\DutyFlow\.agents\explorer_1\analysis.md`. The design fulfills all requirements while maintaining 100% backward compatibility with existing data structures and matrix views.
+
+The technical design and precise implementation instructions for requirements R1, R2, R3, and R4 have been fully formulated and documented in `analysis.md`. All required code paths, exact JSX modifications, CSS class replacements, and prop interface updates have been specified and verified against existing components.
 
 ---
 
 ## 5. Verification Method
-1. **Inspection**:
-   - Inspect `c:\DEV\DutyFlow\.agents\explorer_1\analysis.md` for full interface contracts, code paths, and step-by-step implementation plan.
-2. **TypeScript Compilation**:
-   - Run `npm run lint` in `c:\DEV\DutyFlow` to verify zero TypeScript errors.
-3. **Production Build**:
-   - Run `npm run build` in `c:\DEV\DutyFlow` to verify clean Vite build execution.
+
+1. **TypeScript Verification**:
+   Run `npx tsc --noEmit -p tsconfig.json` (or lint check) to verify zero compilation errors.
+2. **Build Verification**:
+   Run `npx vite build` to confirm production bundle builds without errors.
+3. **Behavioral Invalidation Conditions**:
+   - If dropping a shift template onto a calendar day cell automatically assigns a shift without opening `AssignShiftModal`, R1 is invalidated.
+   - If the upper control panel lacks a visible "Batch Assign" button, R2 is invalidated.
+   - If "Manage Groups" button is visible in `SchedulerDashboard`, R3 is invalidated.
+   - If opening a modal backdrop does not apply blur or fails to center the dialog on viewport scroll, R4 is invalidated.

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, LayoutGrid, Sparkles, Check, Copy, MoreVertical } from 'lucide-react';
+import { Calendar, LayoutGrid, Sparkles, Check, Copy, MoreVertical, Layers } from 'lucide-react';
 import { FourWeekCalendarViewProps, ShiftAssignment } from '../types';
 
 export default function FourWeekCalendarView({
