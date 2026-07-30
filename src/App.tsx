@@ -128,22 +128,25 @@ export default function App() {
         try {
           // Load profile or create a default one
           let profile = await fetchUserById(firebaseUser.uid);
+          const userEmail = (firebaseUser.email || '').toLowerCase();
+          const isDevAdmin = userEmail === 'ofbperth@gmail.com';
 
           if (!profile) {
             console.log('No user profile found. Creating a default entry in Firestore.');
-            // Auto-promote the specified primary developer email to Admin, others to standard User
-            const userEmail = firebaseUser.email || '';
-            const isDevAdmin = userEmail.toLowerCase() === 'ofbperth@gmail.com';
 
             profile = {
               id: firebaseUser.uid,
               name: firebaseUser.displayName || 'Anonymous Doctor',
-              email: userEmail,
+              email: firebaseUser.email || '',
               role: isDevAdmin ? 'admin' : 'user',
               isVirtual: false,
               createdAt: new Date().toISOString()
             };
             await saveUser(profile);
+          } else if (isDevAdmin && profile.role !== 'admin') {
+            // Always enforce admin for ofbperth@gmail.com
+            profile.role = 'admin';
+            await updateUserRole(profile.id, 'admin');
           }
 
           // Set current user FIRST so the app can render even if seeding fails
@@ -243,6 +246,8 @@ export default function App() {
     if (!currentUser) return;
     // Guard: only admins may set role to 'admin'
     if (newRole === 'admin' && currentUser.role !== 'admin') return;
+    // Guard: ofbperth@gmail.com must always remain admin
+    if (currentUser.email?.toLowerCase() === 'ofbperth@gmail.com' && newRole !== 'admin') return;
     try {
       await updateUserRole(currentUser.id, newRole);
       setCurrentUser({ ...currentUser, role: newRole });
