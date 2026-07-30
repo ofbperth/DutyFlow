@@ -962,25 +962,43 @@ export default function SchedulerDashboard({
           {viewMode === 'calendar' ? (
             <FourWeekCalendarView
               startDate={activePeriod.startDate}
-              assignments={shifts.map(s => {
-                const user = users.find(u => u.id === s.userId);
-                const template = templates.find(t => t.id === s.templateId);
-                return {
-                  id: s.id,
-                  userId: s.userId,
-                  userName: user?.name || 'Unknown Staff',
-                  date: s.date,
-                  shiftTypeId: s.templateId,
-                  shiftTypeName: template?.name || 'Shift',
-                  color: template?.color || '#3b82f6',
-                  isCurrentUser: s.userId === currentUser.id,
-                  startTime: template?.startTime,
-                  endTime: template?.endTime,
-                  status: s.status,
-                  notes: s.notes,
-                  targetGroupId: s.targetGroupId
-                };
-              })}
+              assignments={shifts
+                .filter(s => {
+                  if (selectedGroupId && selectedGroupId !== 'all') {
+                    if (s.userId === currentUser.id) return true;
+                    const staffAssignment = rotationAssignments.find(a => a.userId === s.userId);
+                    const staffHomeGroupId = staffAssignment?.groupId;
+                    const template = templates.find(t => t.id === s.templateId);
+                    const shiftTargetGroupId = s.targetGroupId || template?.groupId;
+
+                    const isStaffInSelectedGroup = staffHomeGroupId === selectedGroupId;
+                    const isTargetInSelectedGroup = shiftTargetGroupId === selectedGroupId;
+
+                    if (!isStaffInSelectedGroup && !isTargetInSelectedGroup) {
+                      return false;
+                    }
+                  }
+                  return true;
+                })
+                .map(s => {
+                  const user = users.find(u => u.id === s.userId);
+                  const template = templates.find(t => t.id === s.templateId);
+                  return {
+                    id: s.id,
+                    userId: s.userId,
+                    userName: user?.name || 'Unknown Staff',
+                    date: s.date,
+                    shiftTypeId: s.templateId,
+                    shiftTypeName: template?.name || 'Shift',
+                    color: template?.color || '#3b82f6',
+                    isCurrentUser: s.userId === currentUser.id,
+                    startTime: template?.startTime,
+                    endTime: template?.endTime,
+                    status: s.status,
+                    notes: s.notes,
+                    targetGroupId: s.targetGroupId
+                  };
+                })}
               currentUserId={currentUser.id}
               viewMode={viewMode}
               onViewModeChange={setViewMode}

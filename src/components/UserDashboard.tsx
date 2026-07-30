@@ -606,25 +606,51 @@ export default function UserDashboard({
 
             {/* View Mode Router: 4-Week Calendar View vs Classic Matrix View */}
             {(() => {
-              const assignments: ShiftAssignment[] = shifts.map(s => {
-                const user = users.find(u => u.id === s.userId);
-                const template = templates.find(t => t.id === s.templateId);
-                return {
-                  id: s.id,
-                  userId: s.userId,
-                  userName: user?.name || 'Unknown Staff',
-                  date: s.date,
-                  shiftTypeId: s.templateId,
-                  shiftTypeName: template?.name || 'Shift',
-                  color: template?.color || '#3b82f6',
-                  isCurrentUser: s.userId === currentUser.id,
-                  startTime: template?.startTime,
-                  endTime: template?.endTime,
-                  status: s.status,
-                  notes: s.notes,
-                  targetGroupId: s.targetGroupId
-                };
-              });
+              const assignments: ShiftAssignment[] = shifts
+                .filter(s => {
+                  // Always include user's own shifts
+                  if (s.userId === currentUser.id) return true;
+
+                  // Find staff home group
+                  const staffAssignment = rotationAssignments.find(a => a.userId === s.userId);
+                  const staffHomeGroupId = staffAssignment?.groupId;
+
+                  // Find shift target group
+                  const template = templates.find(t => t.id === s.templateId);
+                  const shiftTargetGroupId = s.targetGroupId || template?.groupId;
+
+                  // Check if staff or shift target group is involved in user's group(s)
+                  const isStaffInInvolvedGroup = Boolean(staffHomeGroupId && myInvolvedGroupIds.has(staffHomeGroupId));
+                  const isTargetInInvolvedGroup = Boolean(shiftTargetGroupId && myInvolvedGroupIds.has(shiftTargetGroupId));
+
+                  // If user belongs to group(s), exclude shifts of staff not involved in user's group
+                  if (myInvolvedGroupIds.size > 0) {
+                    if (!isStaffInInvolvedGroup && !isTargetInInvolvedGroup) {
+                      return false;
+                    }
+                  }
+
+                  return true;
+                })
+                .map(s => {
+                  const user = users.find(u => u.id === s.userId);
+                  const template = templates.find(t => t.id === s.templateId);
+                  return {
+                    id: s.id,
+                    userId: s.userId,
+                    userName: user?.name || 'Unknown Staff',
+                    date: s.date,
+                    shiftTypeId: s.templateId,
+                    shiftTypeName: template?.name || 'Shift',
+                    color: template?.color || '#3b82f6',
+                    isCurrentUser: s.userId === currentUser.id,
+                    startTime: template?.startTime,
+                    endTime: template?.endTime,
+                    status: s.status,
+                    notes: s.notes,
+                    targetGroupId: s.targetGroupId
+                  };
+                });
 
               if (viewMode === 'calendar') {
                 return (
