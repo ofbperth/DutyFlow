@@ -87,7 +87,7 @@ export default function AssignShiftModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto animate-fade-in"
       onClick={onClose}
       id="assign-shift-modal-backdrop"
     >
@@ -122,47 +122,48 @@ export default function AssignShiftModal({
           </button>
         </div>
 
-        {/* Selected Shift Details / Template Selector */}
+        {/* Selected Shift Template Picker (Always Interactive) */}
         <div className="p-3 bg-white/5 rounded-2xl border border-white/10 space-y-2">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-semibold">
-            Shift Assignment Details:
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-semibold">
+              Select Shift Template <span className="text-emerald-400">*</span>:
+            </label>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+              Date: {selectedDate}
+            </span>
           </div>
-          
-          {templates.length > 1 && !shiftTypeId ? (
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Select Shift Template:</label>
-              <select
-                value={selectedTemplateId}
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
-                className="w-full text-xs rounded-xl border border-white/10 bg-slate-800 p-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {templates.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.startTime} - {t.endTime})
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : currentTemplate ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span
-                  className="h-3 w-3 rounded-full shrink-0"
-                  style={{ backgroundColor: currentTemplate.color || '#3b82f6' }}
-                />
-                <div>
-                  <div className="text-xs font-bold text-white">{currentTemplate.name}</div>
-                  <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{currentTemplate.startTime} - {currentTemplate.endTime}</span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1 scrollbar-thin">
+            {templates.map((t) => {
+              const isSelected = selectedTemplateId === t.id;
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedTemplateId(t.id)}
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                    isSelected
+                      ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400'
+                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: t.color || '#3b82f6' }}
+                      />
+                      <span className="text-xs font-bold truncate">{t.name}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono mt-0.5 tabular-nums flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{t.startTime} - {t.endTime}</span>
+                    </div>
                   </div>
+                  {isSelected && <Check className="h-4 w-4 text-emerald-400 shrink-0 ml-1" />}
                 </div>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
-                Date: {selectedDate}
-              </span>
-            </div>
-          ) : null}
+              );
+            })}
+          </div>
         </div>
 
         {/* Staff Search Box */}

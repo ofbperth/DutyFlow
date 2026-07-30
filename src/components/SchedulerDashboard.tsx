@@ -1475,158 +1475,6 @@ export default function SchedulerDashboard({
           </div>
         </div>
       )}
-      {/* Direct Drag & Drop Staff Selector Modal (R1) */}
-      <AssignShiftModal
-        isOpen={Boolean(assignModalData?.isOpen)}
-        onClose={() => setAssignModalData(null)}
-        selectedDate={assignModalData?.selectedDate || null}
-        shiftTypeId={assignModalData?.shiftTypeId || null}
-        templates={filteredTemplates}
-        users={users}
-        groups={groups}
-        rotationAssignments={rotationAssignments}
-        onAssign={async (userId, dateStr, templateId) => {
-          await assignShift(userId, dateStr, templateId);
-        }}
-      />
-
-      {/* Shift Balance Overview Modal Backdrop (R4) */}
-      {showShiftBalance && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-          <div className="relative m-auto max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl p-5 max-w-[90vw] w-full space-y-4 shadow-2xl flex flex-col">
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <h3 className="text-lg font-bold text-white font-display flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-blue-400" /> Shift Balance Overview &amp; Shift Type Breakdown Matrix
-              </h3>
-              <button onClick={() => setShowShiftBalance(false)} className="text-slate-400 hover:text-white">
-                Close
-              </button>
-            </div>
-            <div className="overflow-auto flex-1 space-y-4 pr-2">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-white/5 text-slate-300 font-semibold border-b border-white/10">
-                    <th className="py-2.5 px-3 sticky left-0 bg-[#14112c]/95 z-10 border-r border-white/10">Doctor</th>
-                    <th className="py-2.5 px-3">Group</th>
-                    <th className="py-2.5 px-3 text-center border-x border-white/5">Total Shifts</th>
-                    {filteredTemplates.map(t => (
-                      <th key={t.id} className="py-2.5 px-3 text-center border-r border-white/5 min-w-[80px]" title={`${t.name} (${t.startTime}-${t.endTime})`}>
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }}></span>
-                          <span className="text-[10px] truncate max-w-[80px]">{t.name}</span>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {filteredDoctors.map(u => {
-                    const userShifts = shifts.filter(s => s.userId === u.id && datesArray.includes(s.date));
-                    const shiftTypeCounts: Record<string, number> = {};
-                    userShifts.forEach(s => {
-                      const t = templates.find(t => t.id === s.templateId);
-                      if (t) {
-                        shiftTypeCounts[t.id] = (shiftTypeCounts[t.id] || 0) + 1;
-                      }
-                    });
-                    const totalShiftsCount = userShifts.length;
-                    const assignment = rotationAssignments.find(a => a.userId === u.id);
-                    const group = groups.find(g => g.id === assignment?.groupId);
-                    return (
-                      <tr key={u.id} className="hover:bg-white/5">
-                        <td className="py-3 px-3 font-bold text-slate-200 sticky left-0 bg-[#14112c]/95 z-10 border-r border-white/10">{u.name}</td>
-                        <td className="py-3 px-3 text-slate-400">{group?.name || 'Unassigned'}</td>
-                        <td className="py-3 px-3 text-center tabular-nums text-purple-400 font-bold border-x border-white/5 bg-purple-500/5">{totalShiftsCount}</td>
-                        {filteredTemplates.map(t => (
-                          <td key={t.id} className="py-3 px-3 text-center tabular-nums text-slate-300 border-r border-white/5">
-                            {shiftTypeCounts[t.id] ? (
-                              <span className="px-2 py-0.5 bg-white/10 rounded-md font-bold text-white border border-white/10">{shiftTypeCounts[t.id]}</span>
-                            ) : (
-                              <span className="text-slate-600">-</span>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Multi-Select Batch Assignment Bar */}
-      {selectedDates.length > 0 && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-indigo-500/40 p-4 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-4 animate-fade-in"
-          id="floating-batch-action-bar"
-        >
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 font-extrabold font-mono text-xs">
-              {selectedDates.length}
-            </div>
-            <span className="text-xs font-bold text-slate-200">
-              Date{selectedDates.length === 1 ? '' : 's'} Selected
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowBatchModal(true)}
-              className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 transition-all cursor-pointer flex items-center gap-1.5"
-              id="open-batch-assign-modal-btn"
-            >
-              <span>⚡ Batch Assign Shifts</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedDates([])}
-              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white font-semibold text-xs transition-colors cursor-pointer"
-              id="clear-selected-dates-btn"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Batch Assignment Modal */}
-      <BatchAssignModal
-        selectedDates={selectedDates}
-        templates={filteredTemplates}
-        users={users}
-        isOpen={showBatchModal}
-        onClose={() => setShowBatchModal(false)}
-        onAssign={handleBatchAssignShifts}
-      />
-
-      {/* Touch Context Menu */}
-      <TouchContextMenu
-        date={touchMenuDate || ''}
-        isOpen={showTouchMenu}
-        onClose={() => setShowTouchMenu(false)}
-        onInspectRoster={(date) => {
-          setSelectedDate(date);
-          setShowTouchMenu(false);
-        }}
-        onAddShift={(date) => {
-          setAssignModalData({
-            isOpen: true,
-            selectedDate: date,
-            shiftTypeId: filteredTemplates[0]?.id || ''
-          });
-          setShowTouchMenu(false);
-        }}
-        onCopyRoster={handleCopyDayRoster}
-        onPasteRoster={handlePasteDayRoster}
-        onClearRoster={handleClearDayRoster}
-        canPaste={Boolean(copiedRosterDate && copiedRosterDate !== touchMenuDate)}
-        isScheduler={true}
-      />
-
       {/* Day Inspector Panel */}
       <DayInspectorPanel
         selectedDate={selectedDate}
@@ -1687,6 +1535,31 @@ export default function SchedulerDashboard({
             }
           }
         }}
+      />
+
+      {/* Direct Drag & Drop Staff Selector Modal (R1 & Front Z-Index) */}
+      <AssignShiftModal
+        isOpen={Boolean(assignModalData?.isOpen)}
+        onClose={() => setAssignModalData(null)}
+        selectedDate={assignModalData?.selectedDate || null}
+        shiftTypeId={assignModalData?.shiftTypeId || null}
+        templates={filteredTemplates}
+        users={users}
+        groups={groups}
+        rotationAssignments={rotationAssignments}
+        onAssign={async (userId, dateStr, templateId) => {
+          await assignShift(userId, dateStr, templateId);
+        }}
+      />
+
+      {/* Batch Assignment Modal (Front Z-Index) */}
+      <BatchAssignModal
+        selectedDates={selectedDates}
+        templates={filteredTemplates}
+        users={users}
+        isOpen={showBatchModal}
+        onClose={() => setShowBatchModal(false)}
+        onAssign={handleBatchAssignShifts}
       />
     </div>
   );
