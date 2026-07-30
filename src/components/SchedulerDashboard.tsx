@@ -964,17 +964,17 @@ export default function SchedulerDashboard({
               startDate={activePeriod.startDate}
               assignments={shifts
                 .filter(s => {
-                  if (selectedGroupId && selectedGroupId !== 'all') {
+                  if (showOnlyInvolved && myGroupId) {
                     if (s.userId === currentUser.id) return true;
                     const staffAssignment = rotationAssignments.find(a => a.userId === s.userId);
                     const staffHomeGroupId = staffAssignment?.groupId;
                     const template = templates.find(t => t.id === s.templateId);
                     const shiftTargetGroupId = s.targetGroupId || template?.groupId;
 
-                    const isStaffInSelectedGroup = staffHomeGroupId === selectedGroupId;
-                    const isTargetInSelectedGroup = shiftTargetGroupId === selectedGroupId;
+                    const isStaffInMyGroup = staffHomeGroupId === myGroupId;
+                    const isTargetInMyGroup = shiftTargetGroupId === myGroupId;
 
-                    if (!isStaffInSelectedGroup && !isTargetInSelectedGroup) {
+                    if (!isStaffInMyGroup && !isTargetInMyGroup) {
                       return false;
                     }
                   }
