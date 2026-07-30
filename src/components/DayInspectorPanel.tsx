@@ -78,12 +78,6 @@ export default function DayInspectorPanel({
     return parseFloat(((endMinutes - startMinutes) / 60).toFixed(1));
   };
 
-  // Metrics Summary
-  const totalShifts = dayAssignments.length;
-  const totalHours = dayAssignments.reduce((sum, a) => sum + calculateShiftHours(a.startTime, a.endTime), 0);
-  const publishedShiftsCount = dayAssignments.filter(a => a.status === 'published').length;
-  const draftShiftsCount = dayAssignments.filter(a => a.status === 'draft' || !a.status).length;
-
   const handleStartEditNote = (assignment: ShiftAssignment) => {
     setEditingNoteId(assignment.id);
     setNoteText(assignment.notes || '');
@@ -140,37 +134,6 @@ export default function DayInspectorPanel({
           </button>
         </div>
 
-        {/* Metrics Summary Header */}
-        <div className="p-4 bg-white/[0.02] border-b border-white/10 grid grid-cols-3 gap-3">
-          <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center text-center">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
-              Assigned Staff
-            </span>
-            <span className="text-xl font-bold text-white font-mono mt-0.5 tabular-nums">
-              {totalShifts}
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center text-center">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
-              Total Hours
-            </span>
-            <span className="text-xl font-bold text-emerald-400 font-mono mt-0.5 tabular-nums">
-              {totalHours}h
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center text-center">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
-              Status Ratio
-            </span>
-            <div className="flex items-center gap-1.5 mt-1 text-xs font-bold font-mono">
-              <span className="text-amber-400" title="Draft shifts">{draftShiftsCount}D</span>
-              <span className="text-slate-500">/</span>
-              <span className="text-blue-400" title="Published shifts">{publishedShiftsCount}P</span>
-            </div>
-          </div>
-        </div>
 
         {/* Quick Actions Header for Schedulers */}
         {isScheduler && (

@@ -38,7 +38,11 @@ service cloud.firestore {
       );
       allow update: if isAuthenticated() && (
         isAdmin() ||
-        (isOwner(userId) && request.resource.data.role == resource.data.role) ||
+        (isOwner(userId) && (
+          request.resource.data.role == 'user' ||
+          request.resource.data.role == 'scheduler' ||
+          request.resource.data.role == resource.data.role
+        )) ||
         (isScheduler() && resource.data.isVirtual == true && request.resource.data.role == resource.data.role)
       );
       allow delete: if isAdmin();

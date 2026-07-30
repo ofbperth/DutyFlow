@@ -241,9 +241,13 @@ export default function App() {
   // Role Change handler
   const handleRoleChange = async (newRole: Role) => {
     if (!currentUser) return;
+    // Guard: only admins may set role to 'admin'
+    if (newRole === 'admin' && currentUser.role !== 'admin') return;
     try {
       await updateUserRole(currentUser.id, newRole);
       setCurrentUser({ ...currentUser, role: newRole });
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, role: newRole } : u));
+      setErrorMessage('');
     } catch (err: any) {
       console.error('Error updating role:', err);
       setErrorMessage('Could not update user role.');

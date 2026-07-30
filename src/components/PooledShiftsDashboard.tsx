@@ -223,7 +223,8 @@ export default function PooledShiftsDashboard({
                   </th>
                   {datesArray.map(dateStr => {
                     const isHoliday = holidays.some(h => h.date === dateStr);
-                    const dateObj = new Date(dateStr);
+                    const [y, m, d] = dateStr.split('-').map(Number);
+                    const dateObj = new Date(y, m - 1, d);
                     const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
                     const dayNum = dateObj.getDate();
                     const isWeekend = dayOfWeek === 'Sat' || dayOfWeek === 'Sun';
@@ -232,11 +233,9 @@ export default function PooledShiftsDashboard({
                       <th
                         key={dateStr}
                         className={`p-2 text-center border-r border-white/10 min-w-12 ${
-                          isHoliday
-                            ? 'bg-blue-500/10 text-blue-400 font-semibold'
-                            : isWeekend
-                              ? 'bg-white/5 text-slate-400'
-                              : 'text-slate-400'
+                          isHoliday || isWeekend
+                            ? 'bg-blue-500/10 text-blue-400 font-semibold border-b border-blue-500/30'
+                            : 'text-slate-400'
                         }`}
                       >
                         <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>

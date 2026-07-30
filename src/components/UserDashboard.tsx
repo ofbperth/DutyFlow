@@ -728,11 +728,9 @@ export default function UserDashboard({
                               <th
                                 key={dateStr}
                                 className={`p-2 text-center border-r border-white/10 min-w-12 ${
-                                  isHoliday
-                                    ? 'bg-blue-500/10 text-blue-400 font-semibold'
-                                    : isWeekend
-                                      ? 'bg-white/5 text-slate-400'
-                                      : 'text-slate-400'
+                                  isHoliday || isWeekend
+                                    ? 'bg-blue-500/10 text-blue-400 font-semibold border-b border-blue-500/30'
+                                    : 'text-slate-400'
                                 }`}
                               >
                                 <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>
@@ -810,14 +808,16 @@ export default function UserDashboard({
                                                       <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
                                                       <span className="truncate">{temp?.name}</span>
                                                     </div>
-                                                    <span className={`shrink-0 px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                                                  </div>
+                                                  <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
+                                                    {temp?.startTime} - {temp?.endTime}
+                                                  </div>
+                                                  <div className="mt-1">
+                                                    <span className={`inline-block px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
                                                       shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                                                     }`}>
                                                       {shift.status}
                                                     </span>
-                                                  </div>
-                                                  <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
-                                                    {temp?.startTime} - {temp?.endTime}
                                                   </div>
                                                   {isCrossGroupShift && targetGroup && (
                                                     <div className="mt-1 text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
@@ -899,14 +899,16 @@ export default function UserDashboard({
                                                     <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
                                                     <span className="truncate">{temp?.name}</span>
                                                   </div>
-                                                  <span className={`shrink-0 px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                                                </div>
+                                                <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
+                                                  {temp?.startTime} - {temp?.endTime}
+                                                </div>
+                                                <div className="mt-1">
+                                                  <span className={`inline-block px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
                                                     shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                                                   }`}>
                                                     {shift.status}
                                                   </span>
-                                                </div>
-                                                <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
-                                                  {temp?.startTime} - {temp?.endTime}
                                                 </div>
                                               </div>
                                             );

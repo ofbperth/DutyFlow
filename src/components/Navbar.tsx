@@ -179,7 +179,9 @@ export default function Navbar({
                   >
                     <option value="user" className="bg-slate-900 text-slate-200">User</option>
                     <option value="scheduler" className="bg-slate-900 text-slate-200">Scheduler</option>
-                    <option value="admin" className="bg-slate-900 text-slate-200">Admin</option>
+                    {user.role === 'admin' && (
+                      <option value="admin" className="bg-slate-900 text-slate-200">Admin</option>
+                    )}
                   </select>
                 </div>
               </div>

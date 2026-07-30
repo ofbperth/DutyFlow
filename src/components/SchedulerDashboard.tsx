@@ -24,7 +24,7 @@ import TouchContextMenu from './TouchContextMenu';
 import BatchAssignModal from './BatchAssignModal';
 import DayInspectorPanel from './DayInspectorPanel';
 import AssignShiftModal from './AssignShiftModal';
-import jsPDF from 'jspdf';
+import { exportScheduleToPDF } from '../utils/pdfExport';
 import { saveShift, deleteShift, checkDoubleShift, saveDoctorGroup, deleteDoctorGroup, updateUserGroupAssignment } from '../firebase';
 
 interface SchedulerDashboardProps {
@@ -56,7 +56,6 @@ export default function SchedulerDashboard({
   const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 6, 1)); // Default to July 2026
   
   // Modal states for Rotations & Shift Assignments
-  const [showShiftBalance, setShowShiftBalance] = useState(false);
   const [assignModalData, setAssignModalData] = useState<{ isOpen: boolean; selectedDate: string; shiftTypeId: string } | null>(null);
 
   // Modal State for Click-to-Assign
@@ -100,13 +99,13 @@ export default function SchedulerDashboard({
   const [showTouchMenu, setShowTouchMenu] = useState<boolean>(false);
 
   React.useEffect(() => {
-    if (assigningCell || activeShiftMenu || conflictCell || showPublishConfirm || assignModalData || showShiftBalance) {
+    if (assigningCell || activeShiftMenu || conflictCell || showPublishConfirm || assignModalData) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [assigningCell, activeShiftMenu, conflictCell, showPublishConfirm, assignModalData, showShiftBalance]);
+  }, [assigningCell, activeShiftMenu, conflictCell, showPublishConfirm, assignModalData]);
 
 
   const handleOpenShiftMenu = (shift: Shift | null) => {
@@ -409,73 +408,20 @@ export default function SchedulerDashboard({
   const handleExportPDF = () => {
     setIsExportingPDF(true);
     try {
-      const doc = new jsPDF('landscape');
-
-      // Title & Header
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.text(`DutyFlow: Hospital Duty Schedule`, 14, 20);
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Rotation: ${activePeriod.title} (${activePeriod.startDate} to ${activePeriod.endDate})`, 14, 28);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 34);
-
-      // Table Draw
-      let currentY = 44;
-      doc.setFontSize(8);
-
-      // Header row
-      doc.setFillColor(20, 30, 45); // Dark Slate background
-      doc.rect(14, currentY, 270, 8, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.text('Staff Member', 16, currentY + 5);
-
-      // Draw day indices (limit to fit page width or wrap)
-      const colWidth = 230 / datesArray.length;
-      datesArray.forEach((dateStr, index) => {
-        const dateObj = parseLocalDate(dateStr);
-        doc.text(String(dateObj.getDate()), 50 + (index * colWidth), currentY + 5);
+      exportScheduleToPDF({
+        currentUser,
+        users,
+        templates,
+        shifts,
+        groups,
+        rotationAssignments,
+        schedulePeriod: activePeriod,
+        datesArray
       });
-
-      currentY += 8;
-      doc.setTextColor(50, 50, 50);
-
-      // Rows for each user
-      users.forEach((u, uIdx) => {
-        // Alternating background
-        if (uIdx % 2 === 1) {
-          doc.setFillColor(245, 247, 250);
-          doc.rect(14, currentY, 270, 7, 'F');
-        }
-
-        doc.setFont('helvetica', 'bold');
-        doc.text(u.name.substring(0, 15), 16, currentY + 5);
-        doc.setFont('helvetica', 'normal');
-
-        // Fill days
-        datesArray.forEach((dateStr, dIdx) => {
-          const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
-          if (shift) {
-            const temp = templates.find(t => t.id === shift.templateId);
-            if (temp) {
-              doc.text(temp.name.substring(0, 3), 50 + (dIdx * colWidth), currentY + 5);
-            }
-          }
-        });
-
-        currentY += 7;
-        if (currentY > 185) {
-          doc.addPage();
-          currentY = 20;
-        }
-      });
-
-      doc.save(`DutyFlow_Schedule_${activePeriod.title.replace(/\s+/g, '_')}.pdf`);
       triggerStatus('PDF exported successfully!');
     } catch (err: any) {
-      console.error(err);
-      triggerStatus('Failed to generate PDF document.', 'error');
+      console.error('PDF Export Error:', err);
+      triggerStatus(err.message || 'Failed to generate PDF document.', 'error');
     } finally {
       setIsExportingPDF(false);
     }
@@ -674,17 +620,17 @@ export default function SchedulerDashboard({
                         <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
                         <span className="truncate">{temp?.name}</span>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {shift.notes && <FileText className="h-3 w-3 opacity-80 shrink-0" />}
-                        <span className={`px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
-                          shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                        }`}>
-                          {shift.status}
-                        </span>
-                      </div>
+                      {shift.notes && <FileText className="h-3 w-3 opacity-80 shrink-0" />}
                     </div>
                     <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
                       {temp?.startTime} - {temp?.endTime}
+                    </div>
+                    <div className="mt-1">
+                      <span className={`inline-block px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                        shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      }`}>
+                        {shift.status}
+                      </span>
                     </div>
                     {isCrossGroupShift && targetGroup && (
                       <div className="mt-1 text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
@@ -811,12 +757,6 @@ export default function SchedulerDashboard({
             <span>⚡ Batch Assign</span>
           </button>
 
-          <button
-            onClick={() => setShowShiftBalance(true)}
-            className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 px-4 py-2 rounded-xl text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-          >
-            <BarChart3 className="h-3.5 w-3.5" /> Shift Balance
-          </button>
           <button
             disabled={isExportingPDF}
             onClick={handleExportPDF}
@@ -1031,11 +971,9 @@ export default function SchedulerDashboard({
                       <th
                         key={dateStr}
                         className={`p-2 text-center border-r border-white/10 min-w-12 ${
-                          isHoliday
-                            ? 'bg-blue-500/10 text-blue-400 font-semibold'
-                            : isWeekend
-                              ? 'bg-white/5 text-slate-400'
-                              : 'text-slate-400'
+                          isHoliday || isWeekend
+                            ? 'bg-blue-500/10 text-blue-400 font-semibold border-b border-blue-500/30'
+                            : 'text-slate-400'
                         }`}
                       >
                         <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>

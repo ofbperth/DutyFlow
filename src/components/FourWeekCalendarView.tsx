@@ -173,6 +173,7 @@ export default function FourWeekCalendarView({
           const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
           
           const holiday = holidays.find(h => h.date === dateStr);
+          const isWeekendOrHoliday = isWeekend || Boolean(holiday);
           const isSelected = selectedDate === dateStr;
           const isMultiSelected = selectedDates.includes(dateStr);
           const isCopiedSource = copiedRosterDate === dateStr;
@@ -224,6 +225,8 @@ export default function FourWeekCalendarView({
                   ? 'ring-2 ring-indigo-500 border-indigo-500 bg-indigo-500/10'
                   : isCopiedSource
                   ? 'border-amber-400 bg-amber-500/10'
+                  : isWeekendOrHoliday
+                  ? 'bg-blue-500/10 border-blue-500/30 hover:border-blue-500/40 hover:bg-blue-500/15'
                   : 'bg-slate-900/60 border-white/10 hover:border-white/20 hover:bg-slate-800/80'
               }`}
               data-date={dateStr}
@@ -232,9 +235,7 @@ export default function FourWeekCalendarView({
               <div className="flex items-center justify-between gap-1 border-b border-white/5 pb-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className={`text-xs sm:text-sm font-extrabold font-mono tabular-nums ${
-                    holiday
-                      ? 'text-rose-400'
-                      : isWeekend
+                    isWeekendOrHoliday
                       ? 'text-blue-400'
                       : 'text-slate-200'
                   }`}>

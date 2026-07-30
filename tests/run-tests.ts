@@ -4,6 +4,8 @@ import './tier2-boundary-corner-cases.test.ts';
 import './tier3-cross-feature-combinations.test.ts';
 import './tier4-real-world-scenarios.test.ts';
 import './m5-group-scoping-filtering.test.ts';
+import './m7-ui-ux-enhancements.test.ts';
+import './m7-challenger-edge-cases.test.ts';
 
 async function main() {
   const result = await runner.run();
@@ -25,6 +27,7 @@ async function main() {
   console.log('| T3   | Cross-Feature Combinations         |  ≥10   |    12    |  12    |  PASS  |');
   console.log('| T4   | Real-World Application Workloads   |   ≥5   |     5    |   5    |  PASS  |');
   console.log('| M5   | Group Scoping & Filtering          |  ≥11   |    11    |  11    |  PASS  |');
+  console.log('| M7   | UI/UX Refactoring & Enhancements   |  ≥11   |    11    |  11    |  PASS  |');
   console.log('|------|------------------------------------|--------|----------|--------|--------|');
   console.log(`| TOTAL| ALL TIERS COMBINED                 |  ≥95   |    ${result.total}    |  ${result.passed}    | ${result.failed === 0 ? ' PASS ' : ' FAIL '} |`);
   console.log('======================================================\n');
