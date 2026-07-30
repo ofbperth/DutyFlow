@@ -7,6 +7,8 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  // Server-enforced scheduler scope. Only admins may assign or change this value.
+  homeGroupId?: string;
   isVirtual: boolean;
   createdAt: string;
 }

@@ -116,6 +116,10 @@ export default function SchedulerDashboard({
 
   const handleSaveNote = async () => {
     if (!activeShiftMenu) return;
+    if (!canManageShift(activeShiftMenu)) {
+      triggerStatus('Schedulers can only edit shifts in their own group.', 'error');
+      return;
+    }
     try {
       const updatedShift = { ...activeShiftMenu, notes: activeShiftNotes };
       await saveShift(updatedShift);
@@ -214,6 +218,10 @@ export default function SchedulerDashboard({
     if (!dates || dates.length === 0) return;
     const temp = templates.find(t => t.id === templateId);
     const targetUser = userId || currentUser.id;
+    if (!temp || !canManageAssignment(targetUser, temp)) {
+      triggerStatus('Schedulers can only assign their own group staff using their own group templates.', 'error');
+      return;
+    }
 
     try {
       const promises = dates.map(d => {
@@ -256,7 +264,11 @@ export default function SchedulerDashboard({
       return;
     }
 
-    const sourceShifts = shifts.filter(s => s.date === copiedRosterDate);
+    const sourceShifts = shifts.filter(s => s.date === copiedRosterDate && canManageShift(s));
+    if (sourceShifts.length === 0) {
+      triggerStatus('No shifts from your group are available to paste.', 'error');
+      return;
+    }
     try {
       const promises = sourceShifts.map(s => {
         const newShift: Shift = {
@@ -282,7 +294,7 @@ export default function SchedulerDashboard({
 
   // Clear Day Roster
   const handleClearDayRoster = async (dateStr: string) => {
-    const targetShifts = shifts.filter(s => s.date === dateStr);
+    const targetShifts = shifts.filter(s => s.date === dateStr && canManageShift(s));
     if (targetShifts.length === 0) {
       triggerStatus(`No shifts to clear on ${dateStr}.`);
       return;
@@ -306,6 +318,12 @@ export default function SchedulerDashboard({
 
   // Core Shift Assignment Logic
   const assignShift = async (userId: string, dateStr: string, templateId: string, force = false) => {
+    const selectedTemplate = templates.find(t => t.id === templateId);
+    if (!selectedTemplate || !canManageAssignment(userId, selectedTemplate)) {
+      triggerStatus('Schedulers can only assign their own group staff using their own group templates.', 'error');
+      return;
+    }
+
     // Check Double Shift
     if (checkDoubleShift(shifts, userId, dateStr, templateId, templates)) {
       const u = users.find(u => u.id === userId);
@@ -322,7 +340,7 @@ export default function SchedulerDashboard({
 
     setIsAssigningShiftKey(`${userId}_${dateStr}`);
     try {
-      const temp = templates.find(t => t.id === templateId);
+      const temp = selectedTemplate;
       const shiftId = `shift-${Date.now()}`;
       const newShift: Shift = {
         id: shiftId,
@@ -346,6 +364,10 @@ export default function SchedulerDashboard({
 
   // Remove shift
   const handleRemoveShift = async (shift: Shift) => {
+    if (!canManageShift(shift)) {
+      triggerStatus('Schedulers can only remove shifts in their own group.', 'error');
+      return;
+    }
     setIsRemovingShiftId(shift.id);
     try {
       await deleteShift(shift.id);
@@ -364,7 +386,8 @@ export default function SchedulerDashboard({
     const draftShifts = shifts.filter(
       s => s.status === 'draft' &&
            s.date >= activePeriod.startDate &&
-           s.date <= activePeriod.endDate
+           s.date <= activePeriod.endDate &&
+           canManageShift(s)
     );
 
     if (draftShifts.length === 0) {
@@ -381,7 +404,8 @@ export default function SchedulerDashboard({
     const draftShifts = shifts.filter(
       s => s.status === 'draft' &&
            s.date >= activePeriod.startDate &&
-           s.date <= activePeriod.endDate
+           s.date <= activePeriod.endDate &&
+           canManageShift(s)
     );
 
 
@@ -470,11 +494,27 @@ export default function SchedulerDashboard({
   const isUserUnassigned = unassignedUsers.some(u => u.id === currentUser.id);
   const shouldShowUnassigned = !showOnlyInvolved || isUserUnassigned;
 
-  const displayedGroupsWithUsers = groupsWithUsers.filter(g => 
-    !showOnlyInvolved || myInvolvedGroupIds.has(g.group.id)
-  );
+  const myGroupId = currentUser.homeGroupId || rotationAssignments.find(a => a.userId === currentUser.id)?.groupId;
+  const isGroupScopedScheduler = currentUser.role === 'scheduler';
+  const getShiftTargetGroupId = (shift: Shift) => shift.targetGroupId ?? templates.find(t => t.id === shift.templateId)?.groupId;
+  const canManageAssignment = (userId: string, template: ShiftTemplate) => {
+    if (currentUser.role === 'admin') return true;
+    if (!isGroupScopedScheduler || !myGroupId || template.groupId !== myGroupId) return false;
+    return rotationAssignments.find(assignment => assignment.userId === userId)?.groupId === myGroupId;
+  };
+  const canManageShift = (shift: Shift) => {
+    if (currentUser.role === 'admin') return true;
+    if (!isGroupScopedScheduler || !myGroupId || getShiftTargetGroupId(shift) !== myGroupId) return false;
+    return rotationAssignments.find(assignment => assignment.userId === shift.userId)?.groupId === myGroupId;
+  };
+  const schedulableUsers = isGroupScopedScheduler
+    ? users.filter(user => rotationAssignments.find(assignment => assignment.userId === user.id)?.groupId === myGroupId)
+    : users;
 
-  const myGroupId = rotationAssignments.find(a => a.userId === currentUser.id)?.groupId;
+  const displayedGroupsWithUsers = groupsWithUsers.filter(g =>
+    (!showOnlyInvolved || myInvolvedGroupIds.has(g.group.id)) &&
+    (!isGroupScopedScheduler || g.group.id === myGroupId)
+  );
 
   let filteredDoctors: User[] = [];
   if (myGroupId) {
@@ -497,7 +537,7 @@ export default function SchedulerDashboard({
       });
     });
 
-    const combined = [...homeUsers, ...outerUsers];
+    const combined = isGroupScopedScheduler ? homeUsers : [...homeUsers, ...outerUsers];
     filteredDoctors = combined.filter((u, index, self) => self.findIndex(x => x.id === u.id) === index);
   } else {
     const groupDoctors = displayedGroupsWithUsers.flatMap(g => g.users);
@@ -506,7 +546,8 @@ export default function SchedulerDashboard({
   }
 
   const filteredTemplates = templates.filter(t => {
-    if (!myGroupId) return true;
+    if (!myGroupId) return !isGroupScopedScheduler;
+    if (isGroupScopedScheduler) return t.groupId === myGroupId;
     const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(myGroupId, groups);
 
     const isAllowedForGroup =
@@ -898,6 +939,7 @@ export default function SchedulerDashboard({
               startDate={activePeriod.startDate}
               assignments={shifts
                 .filter(s => {
+                  if (isGroupScopedScheduler) return canManageShift(s);
                   if (showOnlyInvolved && myGroupId) {
                     if (s.userId === currentUser.id) return true;
                     const staffAssignment = rotationAssignments.find(a => a.userId === s.userId);
@@ -1020,7 +1062,7 @@ export default function SchedulerDashboard({
                                 {isBalanced ? '✅ Equal Distribution' : '⚠️ Shift Imbalance'}
                               </span>
                             )}
-                            {!group.isUniversal && (
+                            {currentUser.role === 'admin' && !group.isUniversal && (
                               <div className="relative">
                                 <button
                                   onClick={() => setAddingToGroupId(addingToGroupId === group.id ? null : group.id)}
@@ -1457,7 +1499,7 @@ export default function SchedulerDashboard({
         }}
         onEditAssignment={async (assignmentId, notes) => {
           const targetShift = shifts.find(s => s.id === assignmentId);
-          if (targetShift) {
+          if (targetShift && canManageShift(targetShift)) {
             try {
               await saveShift({ ...targetShift, notes: notes || '' });
               await onRefresh();
@@ -1465,11 +1507,13 @@ export default function SchedulerDashboard({
             } catch (err: any) {
               triggerStatus(err.message || 'Failed to update note', 'error');
             }
+          } else if (targetShift) {
+            triggerStatus('Schedulers can only edit shifts in their own group.', 'error');
           }
         }}
         onRemoveAssignment={async (assignmentId) => {
           const targetShift = shifts.find(s => s.id === assignmentId);
-          if (targetShift) {
+          if (targetShift && canManageShift(targetShift)) {
             try {
               await deleteShift(targetShift.id);
               await onRefresh();
@@ -1477,6 +1521,8 @@ export default function SchedulerDashboard({
             } catch (err: any) {
               triggerStatus(err.message || 'Failed to remove assignment', 'error');
             }
+          } else if (targetShift) {
+            triggerStatus('Schedulers can only remove shifts in their own group.', 'error');
           }
         }}
       />
@@ -1488,7 +1534,7 @@ export default function SchedulerDashboard({
         selectedDate={assignModalData?.selectedDate || null}
         shiftTypeId={assignModalData?.shiftTypeId || null}
         templates={filteredTemplates}
-        users={users}
+        users={schedulableUsers}
         groups={groups}
         rotationAssignments={rotationAssignments}
         onAssign={async (userId, dateStr, templateId) => {
@@ -1500,7 +1546,7 @@ export default function SchedulerDashboard({
       <BatchAssignModal
         selectedDates={selectedDates}
         templates={filteredTemplates}
-        users={users}
+        users={schedulableUsers}
         isOpen={showBatchModal}
         onClose={() => setShowBatchModal(false)}
         onAssign={handleBatchAssignShifts}

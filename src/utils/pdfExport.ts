@@ -10,6 +10,7 @@ export interface ExportPDFParams {
   rotationAssignments: GroupRotationAssignment[];
   schedulePeriod: SchedulePeriod | null;
   datesArray: string[];
+  save?: boolean;
 }
 
 /**
@@ -55,6 +56,27 @@ export const getSafeUserName = (user: User): string => {
   return `Staff ${user.id.substring(0, 4)}`;
 };
 
+export const isShiftInExportScope = (
+  shift: Shift,
+  template: ShiftTemplate | undefined,
+  currentUserId: string,
+  homeGroupId: string
+): boolean => {
+  // An explicit target always wins. Falling back to the template's group is
+  // only valid for legacy shifts that have no targetGroupId.
+  const effectiveTargetGroupId = shift.targetGroupId ?? template?.groupId;
+  const isImplicitSharedShift = !shift.targetGroupId && (template?.groupId === 'group-universal' || template?.isPooled);
+  const isHomeGroupShift = effectiveTargetGroupId === homeGroupId || isImplicitSharedShift;
+
+  if (isHomeGroupShift) return true;
+  if (shift.userId !== currentUserId || !effectiveTargetGroupId) return false;
+
+  const permittedCrossGroups = Object.entries(CROSS_GROUP_RULES)
+    .filter(([, allowed]) => allowed.includes(homeGroupId))
+    .map(([targetId]) => targetId);
+  return permittedCrossGroups.includes(effectiveTargetGroupId);
+};
+
 /**
  * Exports duty schedule to PDF with strict home group & own cross-group scoping.
  */
@@ -66,7 +88,8 @@ export const exportScheduleToPDF = ({
   groups,
   rotationAssignments,
   schedulePeriod,
-  datesArray
+  datesArray,
+  save = true
 }: ExportPDFParams): void => {
   const periodId = schedulePeriod?.id || 'current';
   const periodTitle = schedulePeriod?.title || 'Schedule Period';
@@ -187,19 +210,7 @@ export const exportScheduleToPDF = ({
     const userShifts = shifts.filter(s => {
       if (s.userId !== u.id || !datesArray.includes(s.date)) return false;
       const template = templates.find(t => t.id === s.templateId);
-      const targetGroupId = s.targetGroupId || template?.groupId;
-
-      if (u.id === currentUser.id) {
-        const isHomeGroupShift = targetGroupId === myHomeGroupId || template?.groupId === myHomeGroupId || template?.groupId === 'group-universal' || template?.isPooled;
-        // Only include cross-group shifts targeting groups permitted by CROSS_GROUP_RULES
-        const permittedCrossGroups = Object.entries(CROSS_GROUP_RULES)
-          .filter(([, allowed]) => allowed.includes(myHomeGroupId))
-          .map(([targetId]) => targetId);
-        const isOwnCrossGroupShift = targetGroupId && targetGroupId !== myHomeGroupId && permittedCrossGroups.includes(targetGroupId);
-        return isHomeGroupShift || isOwnCrossGroupShift;
-      }
-
-      return targetGroupId === myHomeGroupId || template?.groupId === myHomeGroupId || template?.groupId === 'group-universal' || template?.isPooled;
+      return isShiftInExportScope(s, template, currentUser.id, myHomeGroupId);
     });
 
     datesArray.forEach((dateStr, dIdx) => {
@@ -233,5 +244,7 @@ export const exportScheduleToPDF = ({
   // 8. Save PDF
   const cleanTitle = periodTitle.replace(/\s+/g, '_');
   const cleanGroup = myGroupName.replace(/\s+/g, '_');
-  doc.save(`DutyFlow_Schedule_${cleanGroup}_${cleanTitle}.pdf`);
+  if (save) {
+    doc.save(`DutyFlow_Schedule_${cleanGroup}_${cleanTitle}.pdf`);
+  }
 };

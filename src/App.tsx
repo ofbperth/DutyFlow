@@ -17,7 +17,8 @@ import {
   testFirestoreConnection,
   getDoctorGroups,
   getRotationAssignments,
-  updateUserRole
+  updateUserRole,
+  syncUserHomeGroupScopes
 } from './firebase';
 import { User, ShiftTemplate, Shift, Availability, ShiftSwap, Holiday, Role, SchedulePeriod, DoctorGroup, GroupRotationAssignment } from './types';
 
@@ -152,11 +153,12 @@ export default function App() {
           // Set current user FIRST so the app can render even if seeding fails
           setCurrentUser(profile);
 
-          // Only run seed for admin/scheduler to avoid permission-denied writes for regular users
-          if (profile.role === 'admin' || profile.role === 'scheduler') {
+          // Seeding writes templates, groups, and config. It is admin-only;
+          // self-promoted schedulers may only manage shifts in their own group.
+          if (profile.role === 'admin') {
             await seedInitialData();
           }
-          await loadAllData();
+          await loadAllData(profile);
         } catch (err: any) {
           console.error('Error handling auth state change:', err);
           setErrorMessage('Could not load user profile from Firestore.');
@@ -174,7 +176,7 @@ export default function App() {
   }, []);
 
   // Fetch all hospital entities
-  const loadAllData = async () => {
+  const loadAllData = async (viewer?: User) => {
     setIsDataLoading(true);
     try {
       const [u, t, s, a, sw, h, sp, grps, rotAsgmts] = await Promise.all([
@@ -189,7 +191,12 @@ export default function App() {
         getRotationAssignments('current')
       ]);
 
-      setUsers(u);
+      const effectiveViewer = viewer || currentUser;
+      const scopedUsers = effectiveViewer?.role === 'admin'
+        ? await syncUserHomeGroupScopes(u, rotAsgmts, 'current')
+        : u;
+
+      setUsers(scopedUsers);
       setTemplates(t);
       setShifts(s);
       setAvailabilities(a);
@@ -198,6 +205,11 @@ export default function App() {
       setSchedulePeriod(sp);
       setGroups(grps);
       setRotationAssignments(rotAsgmts);
+
+      const refreshedCurrentUser = scopedUsers.find(user => user.id === effectiveViewer?.id);
+      if (refreshedCurrentUser && (!currentUser || effectiveViewer?.id === currentUser.id)) {
+        setCurrentUser(refreshedCurrentUser);
+      }
 
       setErrorMessage('');
 

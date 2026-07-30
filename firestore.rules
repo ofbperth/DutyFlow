@@ -28,6 +28,19 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function hasSchedulerScope() {
+      return isScheduler() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.keys().hasAll(['homeGroupId']);
+    }
+
+    function isOwnGroupShift(shift) {
+      return hasSchedulerScope() &&
+        shift.targetGroupId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.homeGroupId &&
+        get(/databases/$(database)/documents/users/$(shift.userId)).data.keys().hasAll(['homeGroupId']) &&
+        get(/databases/$(database)/documents/users/$(shift.userId)).data.homeGroupId ==
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.homeGroupId;
+    }
+
     // 1. Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
@@ -38,12 +51,9 @@ service cloud.firestore {
       );
       allow update: if isAuthenticated() && (
         isAdmin() ||
-        (isOwner(userId) && (
-          request.resource.data.role == 'user' ||
-          request.resource.data.role == 'scheduler' ||
-          request.resource.data.role == resource.data.role
-        )) ||
-        (isScheduler() && resource.data.isVirtual == true && request.resource.data.role == resource.data.role)
+        (isOwner(userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']) &&
+          (request.resource.data.role == 'user' || request.resource.data.role == 'scheduler'))
       );
       allow delete: if isAdmin();
     }
@@ -51,13 +61,14 @@ service cloud.firestore {
     // 3. Shift Templates collection
     match /shiftTemplates/{templateId=**} {
       allow read: if true;
-      allow write: if isAdmin() || isScheduler();
+      allow write: if isAdmin();
     }
 
     // 4. Shifts collection
     match /shifts/{shiftId=**} {
       allow read: if true;
-      allow write: if isAdmin() || isScheduler();
+      allow create, update: if isAdmin() || isOwnGroupShift(request.resource.data);
+      allow delete: if isAdmin() || isOwnGroupShift(resource.data);
     }
 
     // 5. Availabilities collection
@@ -101,7 +112,7 @@ service cloud.firestore {
     // 8. Config collection
     match /config/{configId=**} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isScheduler();
+      allow write: if isAdmin();
     }
 
     // 9. Test connection
@@ -112,21 +123,13 @@ service cloud.firestore {
     // 10. Doctor Groups collection
     match /doctorGroups/{groupId=**} {
       allow read: if true;
-      allow write: if isAdmin() || isScheduler();
+      allow write: if isAdmin();
     }
 
     // 11. Rotation Assignments collection
     match /rotationAssignments/{assignmentId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (
-        isAdmin() || isScheduler() ||
-        (request.resource.data.userId == request.auth.uid)
-      );
-      allow update: if isAuthenticated() && (
-        isAdmin() || isScheduler() ||
-        (resource.data.userId == request.auth.uid)
-      );
-      allow delete: if isAdmin() || isScheduler();
+      allow write: if isAdmin();
     }
   }
 }

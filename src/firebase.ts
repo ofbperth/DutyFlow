@@ -115,6 +115,40 @@ export const updateUserGroupAssignment = async (userId: string, periodId: string
     };
     await setDoc(doc(db, 'rotationAssignments', newId), assignment);
   }
+
+  // Keep the immutable, rule-readable scheduler scope on the user's profile in
+  // sync with the active rotation. Firestore rules deliberately only let admins
+  // change this field, so a self-promoted scheduler cannot widen their scope.
+  if (periodId === 'current') {
+    await updateDoc(doc(db, 'users', userId), { homeGroupId: groupId });
+  }
+};
+
+export const syncUserHomeGroupScopes = async (
+  users: User[],
+  assignments: GroupRotationAssignment[],
+  periodId: string
+): Promise<User[]> => {
+  const groupByUserId = new Map(
+    assignments
+      .filter(assignment => assignment.periodId === periodId)
+      .map(assignment => [assignment.userId, assignment.groupId])
+  );
+
+  const scopedUsers = users.map(user => {
+    const homeGroupId = groupByUserId.get(user.id);
+    return homeGroupId && user.homeGroupId !== homeGroupId
+      ? { ...user, homeGroupId }
+      : user;
+  });
+
+  await Promise.all(
+    scopedUsers
+      .filter((user, index) => user !== users[index])
+      .map(user => updateDoc(doc(db, 'users', user.id), { homeGroupId: user.homeGroupId }))
+  );
+
+  return scopedUsers;
 };
 
 export const saveUser = async (user: User): Promise<void> => {
