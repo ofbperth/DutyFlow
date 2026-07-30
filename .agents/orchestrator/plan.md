@@ -1,26 +1,19 @@
-# Plan: DutyFlow UI/UX Fixes
+# Orchestration Plan — DutyFlow Group-Scoped Shift Template & Schedule Filtering
 
-## Overview
-Address 4 UI/UX requirements in DutyFlow (R1-R4) and conduct build verification, review, forensic audit, and git commit/push to origin/main (R5).
+## Objectives
+1. **R1. Universal & Group-Specific Shift Template Scoping Across All Groups**:
+   - Refactor template fetching, rendering, and filtering logic (`src/components/SchedulerDashboard.tsx`, `src/firebase.ts`, `src/types.ts`) so shift templates owned by a group are visible ONLY to users in that group or allowed target groups (`getAllowedTargetGroupIdsForHomeGroup`).
+   - Support template aliases: General Weekday = เวรวันธรรมดา (`temp-group-weekday`), General Holiday = เวรวันหยุด (`temp-group-holiday`).
+2. **R2. Group-Scoped Schedule & Shift View Across All Groups**:
+   - Filter calendar/matrix shifts, rosters, dropdowns, and schedule view controls based on active home group and cross-group permissions.
+3. **R3. Generalization & Removal of Hardcoded Special-Casing**:
+   - Remove hardcoded group overrides (e.g., `group-saraburi`, `group-1650`). Resolve dynamically via `getAllowedTargetGroupIdsForHomeGroup` and `CROSS_GROUP_RULES`.
 
-## Requirements Breakdown & Acceptance Criteria
-1. **R1: Direct Drag & Drop Staff Selector Modal**:
-   - Dragging a shift template onto a calendar date cell (or adding a shift from panel) prompts a staff selection modal/prompt asking which staff member to assign to that shift for that date.
-2. **R2: Upper Panel Batch Assign Trigger**:
-   - Add a prominent "Batch Assign" button in the upper control panel of Scheduler Dashboard / 4-Week Calendar View that opens the BatchAssignmentModal.
-3. **R3: Relocate Manage Group to Admin Menu**:
-   - Move "Manage Group" trigger to Admin Dashboard / Admin menu so group management is strictly housed within administrative settings.
-4. **R4: Fixed Centered Positioning for Modals & Popups on Scroll**:
-   - Modal overlays use `fixed inset-0 z-50 flex items-center justify-center` with backdrop blur so popups stay centered and follow the viewport smoothly when scrolling.
-5. **R5: Recheck, Verification, Commit & Push**:
-   - Verify all 4 requirements, run production build (`npm run build`), verify zero errors, then perform git add, git commit, and git push to origin/main.
-
-## Orchestration Milestones
-- **Milestone 1**: Technical Exploration & Architectural Mapping (Explorer)
-  - Map files, components, state management, modal styling, drag-and-drop event handlers, batch assign triggers, group manager menu locations.
-- **Milestone 2**: UI/UX Implementation (Worker)
-  - Implement R1, R2, R3, R4 in components.
-- **Milestone 3**: Review, Verification & Forensic Audit (Reviewer, Challenger, Auditor)
-  - Perform code review, build verification (`npm run build`), stress tests, forensic audit.
-- **Milestone 4**: Git Commit & Push (Worker)
-  - Execute git add, git commit, git push to origin/main.
+## Execution Topology
+1. **Exploration Phase**: Spawn 3 parallel Explorers (`explorer_1`, `explorer_2`, `explorer_3`) to analyze existing hardcoded overrides, template filtering logic, schedule view logic, test suite, and present concrete refactoring designs.
+2. **Implementation Phase**: Spawn 1 Worker (`implementer_1`) with Explorer consensus design to refactor codebase, run type checks, unit tests, and build.
+3. **Review & Audit Phase**:
+   - 2 Independent Reviewers (`reviewer_1`, `reviewer_2`)
+   - 2 Challengers (`challenger_1`, `challenger_2`)
+   - 1 Forensic Auditor (`auditor_1`)
+4. **Final Gate**: All tests pass, build passes, 0 reviewer vetoes, clean audit verdict.

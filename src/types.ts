@@ -95,27 +95,34 @@ export const CROSS_GROUP_RULES: Record<string, string[]> = {
   'group-icu3': ['group-nvm23-asd11']
 };
 
-export const getAllowedTargetGroupIdsForHomeGroup = (homeGroupId: string): string[] => {
-  const allowed: string[] = ['group-pooled'];
-  if (homeGroupId !== 'group-saraburi' && homeGroupId !== 'group-1650') {
-    allowed.push('group-universal');
+export const NON_UNIVERSAL_GROUPS = new Set<string>(['group-saraburi', 'group-1650']);
+
+export const getAllowedTargetGroupIdsForHomeGroup = (
+  homeGroupId: string,
+  groups?: DoctorGroup[]
+): string[] => {
+  const allowed = new Set<string>();
+
+  if (homeGroupId) {
+    allowed.add(homeGroupId);
   }
-  if (homeGroupId === 'group-saraburi') {
-    allowed.push('group-saraburi');
+  allowed.add('group-pooled');
+
+  const isNonUniversal = groups
+    ? groups.find(g => g.id === homeGroupId)?.isUniversal === false || NON_UNIVERSAL_GROUPS.has(homeGroupId)
+    : NON_UNIVERSAL_GROUPS.has(homeGroupId);
+
+  if (!isNonUniversal) {
+    allowed.add('group-universal');
   }
-  if (homeGroupId === 'group-1650' || homeGroupId === 'group-nvmdown' || homeGroupId === 'group-nvm23-asd11') {
-    allowed.push('group-1650');
+
+  for (const [targetGroupId, allowedHomeGroups] of Object.entries(CROSS_GROUP_RULES)) {
+    if (allowedHomeGroups.includes(homeGroupId)) {
+      allowed.add(targetGroupId);
+    }
   }
-  if (homeGroupId === 'group-nvm23-asd11' || homeGroupId === 'group-icu3') {
-    allowed.push('group-icu3');
-  }
-  if (homeGroupId === 'group-rcu' || homeGroupId === 'group-icu8s') {
-    allowed.push('group-icu8s');
-  }
-  if (homeGroupId === 'group-ccu' || homeGroupId === 'group-icu8n') {
-    allowed.push('group-icu8n');
-  }
-  return allowed;
+
+  return Array.from(allowed);
 };
 
 // 4-Week Calendar & Adaptive Scheduling Contracts

@@ -561,15 +561,9 @@ export default function SchedulerDashboard({
 
   const filteredTemplates = templates.filter(t => {
     if (!myGroupId) return true;
-    const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(myGroupId);
-
-    if ((myGroupId === 'group-saraburi' || myGroupId === 'group-1650') && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))) {
-      return false;
-    }
+    const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(myGroupId, groups);
 
     const isAllowedForGroup =
-      t.groupId === myGroupId ||
-      t.groupId === 'group-pooled' ||
       !!t.isPooled ||
       allowedGroupIds.includes(t.groupId);
     
@@ -870,11 +864,11 @@ export default function SchedulerDashboard({
 
           <div className="space-y-4 max-h-80 xl:max-h-[600px] overflow-y-auto pr-1">
             {/* 1. General / Universal Templates */}
-            {filteredTemplates.filter(t => !t.isPooled && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))).length > 0 && (
+            {filteredTemplates.filter(t => !t.isPooled && t.groupId === 'group-universal').length > 0 && (
               <div>
                 <h3 className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">General Templates</h3>
                 <div className="space-y-1">
-                  {filteredTemplates.filter(t => !t.isPooled && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))).map(t => (
+                  {filteredTemplates.filter(t => !t.isPooled && t.groupId === 'group-universal').map(t => (
                     <div
                       key={t.id}
                       draggable
@@ -897,7 +891,7 @@ export default function SchedulerDashboard({
 
             {/* 2. Group Specific Templates (Dynamically for all groups including สระบุรี, 1650, ICU, etc.) */}
             {groups.map(g => {
-              const groupTemps = filteredTemplates.filter(t => !t.isPooled && t.groupId === g.id && !['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name));
+              const groupTemps = filteredTemplates.filter(t => !t.isPooled && t.groupId === g.id && t.groupId !== 'group-universal');
               if (groupTemps.length === 0) return null;
               return (
                 <div key={g.id}>
@@ -1286,15 +1280,9 @@ export default function SchedulerDashboard({
                 const userGroupId = userAssignment?.groupId;
                 if (!userGroupId) return true;
                 
-                const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(userGroupId);
-
-                if ((userGroupId === 'group-saraburi' || userGroupId === 'group-1650') && (t.groupId === 'group-universal' || ['เวรวันธรรมดา', 'เวรวันหยุด'].includes(t.name))) {
-                  return false;
-                }
+                const allowedGroupIds = getAllowedTargetGroupIdsForHomeGroup(userGroupId, groups);
 
                 return (
-                  t.groupId === userGroupId ||
-                  t.groupId === 'group-pooled' ||
                   !!t.isPooled ||
                   allowedGroupIds.includes(t.groupId)
                 );

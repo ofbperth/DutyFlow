@@ -1,37 +1,37 @@
 # Original User Request
 
-## 2026-07-30T13:08:40Z
+## 2026-07-30T12:15:18Z
 
-Fix 4 critical UI/UX issues in DutyFlow's Scheduler and 4-Week Calendar views, ensure all features function smoothly, verify with build tests, and perform git commit & push.
+Fix group-based shift template and schedule filtering in DutyFlow so that EVERY shift template is shown strictly ONLY to users in its related/allowed groups and hidden from users in unrelated groups across ALL doctor groups (not limited to สระบุรี).
 
 Working directory: c:\DEV\DutyFlow
 Integrity mode: development
 
 ## Requirements
 
-### R1. Direct Drag & Drop Staff Selector Modal
-When dragging & dropping a shift template onto a calendar date cell (or adding a shift from the panel), open a staff selection prompt/modal asking which staff member to assign to that shift for that specific date.
+### R1. Universal & Group-Specific Shift Template Scoping Across All Groups
+Refactor template fetching, rendering, and filtering logic (in `src/components/SchedulerDashboard.tsx`, `src/firebase.ts`, `src/types.ts`) so that for **every group** (Saraburi, 1650, ICU8S, ICU8N, ICU3, RCU, CCU, NVM groups, etc.):
+- Shift templates owned by a specific group are visible **ONLY** to users belonging to that home group or to users in groups explicitly allowed via cross-group rules (`getAllowedTargetGroupIdsForHomeGroup`).
+- Unrelated shift templates are strictly hidden from users outside those groups.
+- Template aliases: **General Weekday** = **เวรวันธรรมดา** (`temp-group-weekday`), **General Holiday** = **เวรวันหยุด** (`temp-group-holiday`).
 
-### R2. Upper Panel Batch Assign Trigger
-Add a clear, prominent "Batch Assign" button in the upper control panel of the Scheduler Dashboard / 4-Week Calendar View that opens the Batch Assignment Modal.
+### R2. Group-Scoped Schedule & Shift View Across All Groups
+Filter displayed calendar/matrix shifts, duty rosters, template dropdowns, and schedule view controls so users in **any group** see only shifts and shift templates related to their active home group or allowed cross-group assignments.
 
-### R3. Relocate Manage Group to Admin Menu
-Move the "Manage Group" (Group Manager) access trigger to the Admin Dashboard / Admin menu so group management is strictly housed within administrative settings.
+### R3. Generalization & Removal of Hardcoded Special-Casing
+Remove all hardcoded group-specific overrides (e.g. hardcoded `group-saraburi` or `group-1650` logic blocks) across components. Resolve template and schedule visibility dynamically for **all groups** via central permission helpers (`getAllowedTargetGroupIdsForHomeGroup`, `CROSS_GROUP_RULES`).
 
-### R4. Fixed Centered Positioning for Modals & Popups on Scroll
-Fix modal overlays (including Shift Balance modal, Assign Cell modal, etc.) using fixed inset-0 z-50 flex items-center justify-center with background backdrop blur so popups stay centered and follow the viewport smoothly when scrolling up and down.
+## Verification Plan
 
-### R5. Recheck, Verification, Commit & Push
-Verify all 4 requirements, run production build (npm run build), verify zero errors, then perform git add, git commit, and git push to origin/main.
+### Automated Verification
+- Run TypeScript type checking: `npm run lint`
+- Run project test suite: `npm test`
+- Verify production build: `npm run build`
 
 ## Acceptance Criteria
 
-### Functionality & UI
-- [ ] Dragging a shift template onto a calendar date cell prompts a modal/dropdown to select the staff member to assign.
-- [ ] Upper control panel contains a working "Batch Assign" button opening the BatchAssignModal.
-- [ ] "Manage Group" button is located within the Admin Menu/Dashboard.
-- [ ] Modals (Shift Balance, Assign Shift, etc.) stay fixed and centered on screen when scrolling up and down.
-
-### Build & Version Control
-- [ ] npm run build completes with 0 errors.
-- [ ] Changes are committed with a clear message and pushed to origin/main.
+### Universal Group Isolation & Template Filtering
+- [ ] For **every** doctor group, a logged-in user sees **only** shift templates belonging to their home group or allowed target groups (`allowedTargetGroupIds`).
+- [ ] Shift templates belonging to unrelated groups (e.g., Saraburi templates, 1650 templates, ICU templates) are hidden from users in groups that lack cross-group access.
+- [ ] Scheduled shifts shown in calendar, matrix, and roster views strictly match the user's active group and involved cross-group shifts.
+- [ ] `npm run lint`, `npm test`, and `npm run build` pass with zero errors.

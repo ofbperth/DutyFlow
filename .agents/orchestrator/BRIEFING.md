@@ -1,30 +1,32 @@
-# BRIEFING — 2026-07-30T13:14:14Z
+# BRIEFING — 2026-07-30T19:15:25+07:00
 
 ## Mission
-Orchestrate the remediation and verification of DutyFlow UI/UX Fixes (R1: Direct Drag & Drop Staff Selector Modal, R2: Upper Panel Batch Assign Trigger, R3: Relocate Manage Group to Admin Menu, R4: Fixed Centered Positioning for Modals & Popups on Scroll, R5: Recheck, Verification, Build, Commit & Push).
+Fix group-based shift template and schedule filtering in DutyFlow across ALL doctor groups via dynamic central permission helpers.
 
 ## 🔒 My Identity
 - Archetype: Project Orchestrator
 - Roles: orchestrator, user_liaison, human_reporter, successor
 - Working directory: c:\DEV\DutyFlow\.agents\orchestrator
-- Original parent: 21ba1639-c59c-4eb3-bbb4-1c79f895e79b
-- Original parent conversation ID: 21ba1639-c59c-4eb3-bbb4-1c79f895e79b
+- Original parent: 14e0e577-8311-411a-976e-f2a500c6ee32
+- Original parent conversation ID: 14e0e577-8311-411a-976e-f2a500c6ee32
 
 ## 🔒 My Workflow
 - **Pattern**: Project Pattern
 - **Scope document**: c:\DEV\DutyFlow\PROJECT.md
-1. **Decompose**: Decomposed into Remediation Iteration loop (Explorer → Worker → Reviewer → Challenger → Auditor) + Git Commit & Push.
-2. **Dispatch & Execute**: All tasks fully complete.
-3. **On failure**: Retry → Replace → Skip → Redistribute → Redesign.
-4. **Succession**: Self-succeed when spawn count >= 16 and pending subagents complete.
-
+1. **Decompose**:
+   - Milestone 5 (M5): Universal Group-Scoped Shift Template & Schedule Filtering Refactoring (`src/firebase.ts`, `src/types.ts`, `src/components/SchedulerDashboard.tsx`, etc.)
+   - Milestone 6 (M6): E2E & Unit Test Coverage, Build & Typecheck Verification, Forensic Audit
+2. **Dispatch & Execute**: Direct iteration loop (Explorer → Worker → Reviewer → Challenger → Auditor)
+3. **On failure**: Retry → Replace → Skip → Redistribute → Redesign
+4. **Succession**: Self-succeed at 16 spawns
 - **Work items**:
-  1. Fix missing `Layers` import in `FourWeekCalendarView.tsx` (Worker 5) [done - `4f1a23e`]
-  2. Quality Re-Review & Typecheck Verification (`npx tsc --noEmit` 0 errors) [done]
-  3. Git Commit & Push to origin/main (`4f1a23e`) [done]
-
+  1. Exploration & Technical Design (3 Explorers) [done]
+  2. Implementation of Group-Scoped Shift Template & Schedule Filtering (Worker 1) [done]
+  3. Code & Functional Review (2 Reviewers) [done]
+  4. Empirical Verification (2 Challengers) [done]
+  5. Forensic Integrity Audit (1 Auditor) [done]
 - **Current phase**: 4 (Complete)
-- **Current focus**: Final completion report to parent.
+- **Current focus**: Final completion report to parent / Sentinel.
 
 ## 🔒 Key Constraints
 - NEVER write source code directly.
@@ -34,38 +36,36 @@ Orchestrate the remediation and verification of DutyFlow UI/UX Fixes (R1: Direct
 - Binary veto on Forensic Auditor violations / Reviewer rejections.
 
 ## Current Parent
-- Conversation ID: 21ba1639-c59c-4eb3-bbb4-1c79f895e79b
-- Updated: 2026-07-30T13:14:14Z
+- Conversation ID: 14e0e577-8311-411a-976e-f2a500c6ee32
+- Updated: 2026-07-30T19:25:25+07:00
 
 ## Key Decisions Made
-- Received Reviewer 2 feedback about missing `Layers` import in `FourWeekCalendarView.tsx`.
-- Dispatched Worker 5 to add `Layers` import, verify `npx tsc --noEmit` (0 errors) and `npm run build` (0 errors), and push fix to `origin/main` (`4f1a23e`).
+- Initiated Project Orchestration for Group-Scoped Shift Template & Schedule Filtering across all doctor groups.
+- Dispatched 3 Explorers, 1 Worker, 2 Reviewers, 2 Challengers, and 1 Forensic Auditor.
+- Verified 108/108 passing tests, 0 lint errors, clean Vite build, 2 ACCEPT verdicts, 2 PASS verdicts, and CLEAN audit verdict.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| Explorer 1 | teamwork_preview_explorer | Codebase exploration & technical design | completed | 4497237b-b1ca-4d49-a2a5-072dbc6e5774 |
-| Worker 1 | teamwork_preview_worker | Milestone 2 UI/UX Fixes Implementation | completed | ddf1a5c9-abfe-4e0c-8d67-885706e90f64 |
-| Reviewer 1 | teamwork_preview_reviewer | M3 Code & UI Quality Review | completed (REJECT) | deae0a1a-4d22-4c83-95d7-27a676602554 |
-| Challenger 1 | teamwork_preview_challenger | M3 Empirical Stress Verification | completed (PASS) | 97479011-4c85-4102-99a5-96ef10ba52e5 |
-| Auditor 1 | teamwork_preview_auditor | M3 Forensic Integrity Audit | completed (CLEAN) | a1486611-b455-4225-a26b-0cf121e0d936 |
-| Worker 2 | teamwork_preview_worker | M4 Git Commit & Push to origin/main | completed | b0dd68e4-1b63-4090-85db-2dece55c9f56 |
-| Worker 3 | teamwork_preview_worker | Iteration 2 UI/UX Fixes Remediation | completed | 40e6cba4-4dd7-4049-b516-4ba4a057ea38 |
-| Reviewer 2 | teamwork_preview_reviewer | Iteration 2 Quality Re-Review | completed (REJECT - missing Layers import) | afb2c8ef-5dea-4271-b7d6-5b603e91cf32 |
-| Challenger 2 | teamwork_preview_challenger | Iteration 2 Empirical Re-Verification | completed (PASS) | e4cfa006-fe66-4b07-8604-f28ef71ed1f5 |
-| Auditor 2 | teamwork_preview_auditor | Iteration 2 Forensic Integrity Audit | completed (CLEAN) | 723ba9ed-4500-4b6b-9e33-d246259bdcd4 |
-| Worker 4 | teamwork_preview_worker | Git Commit & Push to origin/main | completed | e121ee82-fe10-408b-9b65-31ba283cd24a |
-| Worker 5 | teamwork_preview_worker | Fix missing Layers import in FourWeekCalendarView | completed | fe05bf20-334c-4927-822c-7ca27d462b0a |
+| Explorer 1 | teamwork_preview_explorer | Codebase Group Overrides Analysis | completed | cd6f489b-655b-406d-80c0-d7a92545de5f |
+| Explorer 2 | teamwork_preview_explorer | Permission Helpers & Data Model Analysis | completed | 885e1181-84de-4516-bcdb-7d1e43bfde20 |
+| Explorer 3 | teamwork_preview_explorer | Test Suite & Verification Analysis | completed | 2fe7e28e-092f-4122-a9a2-ff0e4bf3f716 |
+| Worker 1 | teamwork_preview_worker | Group Scoping & Filtering Refactoring | completed | b3f179b4-829d-4beb-8476-24e94f718e7c |
+| Reviewer 1 | teamwork_preview_reviewer | Code Quality & Interface Review | completed (ACCEPT) | a561c71f-60fd-4c94-a4c2-df7e53fb0482 |
+| Reviewer 2 | teamwork_preview_reviewer | Group Scoping & Safety Review | completed (ACCEPT) | 5c62279a-b396-4468-9e28-a834a1a85d55 |
+| Challenger 1 | teamwork_preview_challenger | Empirical Stress & Edge-Case Verification | completed (PASS) | 7bbf88e7-991e-4f37-bc92-3a8e614ef8cb |
+| Challenger 2 | teamwork_preview_challenger | Static Analysis & Hardcode Elimination Check | completed (PASS) | 917c9f10-c999-4362-b4c8-e37421fa0f54 |
+| Auditor 1 | teamwork_preview_auditor | Forensic Integrity Audit | completed (CLEAN) | a7a1f126-99e6-4459-90a8-6f21d3d95657 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 12 / 16
+- Spawn count: 9 / 16
 - Pending subagents: none
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: killed
+- Heartbeat cron: killed (task-15)
 - Safety timer: none
 
 ## Artifact Index
@@ -73,4 +73,4 @@ Orchestrate the remediation and verification of DutyFlow UI/UX Fixes (R1: Direct
 - c:\DEV\DutyFlow\PROJECT.md — Global architecture, milestones, interface contracts, layout
 - c:\DEV\DutyFlow\.agents\orchestrator\progress.md — Execution progress log & heartbeat
 - c:\DEV\DutyFlow\.agents\orchestrator\plan.md — Detailed orchestration plan
-- c:\DEV\DutyFlow\.agents\orchestrator\handoff.md — Final Orchestrator Handoff Report
+- c:\DEV\DutyFlow\.agents\orchestrator\context.md — Project context and state tracking

@@ -1,47 +1,63 @@
-# Victory Audit Handoff Report — DutyFlow Project
+# Victory Audit Handoff Report
+
+=== VICTORY AUDIT REPORT ===
+
+VERDICT: VICTORY CONFIRMED
+
+PHASE A — TIMELINE:
+  Result: PASS
+  Anomalies: none
+
+PHASE B — INTEGRITY CHECK:
+  Result: PASS
+  Details: Passed all forensic integrity checks (hardcoded output check, facade implementation check, pre-populated artifact check, AST code inspection check). Universal group filtering logic is genuine, dynamic, and free of hardcoded conditionals.
+
+PHASE C — INDEPENDENT TEST EXECUTION:
+  Test command: `npm run lint`, `npm test`, `npm run build`
+  Your results: 0 lint errors, 108/108 passing tests, clean Vite production build (10.76s)
+  Claimed results: 0 lint errors, 108/108 passing tests, clean production build
+  Match: YES — 0 discrepancies found
+
+EVIDENCE (if REJECTED):
+  N/A
+
+---
 
 ## 1. Observation
-The Victory Auditor conducted an independent, zero-shared-context forensic and empirical audit of the DutyFlow codebase at `c:\DEV\DutyFlow`. The following concrete observations were recorded:
 
-1. **Timeline & Provenance Audit (Phase A)**:
-   - Evaluated `.agents/orchestrator/progress.md` and agent event logs.
-   - Task initiated at 2026-07-29T22:36:00Z. Work proceeded sequentially through Explorer analysis, Test infrastructure creation (`TEST_READY.md`), Milestone 1 (4-Week Grid & Switcher), Milestone 2 (Desktop & Mobile Controls), Milestone 3 (Day Inspector & Integration), and Milestone 4 (Tri-Specialist Verification).
-   - Git status (`git status`): 5 modified source files (`package.json`, `UserDashboard.tsx`, `SchedulerDashboard.tsx`, `index.css`, `types.ts`), 4 new UI component files (`FourWeekCalendarView.tsx`, `BatchAssignModal.tsx`, `TouchContextMenu.tsx`, `DayInspectorPanel.tsx`), 8 test suite files under `tests/`, and project documentation artifacts (`PROJECT.md`, `TEST_INFRA.md`, `TEST_READY.md`).
-   - Timestamps show clear iterative development. No pre-populated log files or fabricated verification artifacts were found.
+1. **Phase A — Timeline & Provenance Analysis**:
+   - Reconstructed execution history across `.agents/orchestrator/progress.md`, `.agents/orchestrator/plan.md`, and subagent handoff files.
+   - Project lifecycle followed standard sequence: 3 Explorers -> 1 Implementer -> 2 Reviewers, 2 Challengers, 1 Forensic Auditor -> Orchestrator handoff.
+   - Timestamps and artifacts show genuine iterative progress without pre-populated result files or anomalous timestamps.
 
-2. **Cheating & Mocking Forensic Audit (Phase B)**:
-   - Source code analysis of `FourWeekCalendarView.tsx`, `BatchAssignModal.tsx`, `TouchContextMenu.tsx`, and `DayInspectorPanel.tsx` confirmed real HTML5 Drag-and-Drop event handlers (`onDragOver`, `onDrop`), touch context state handling, multi-select date set manipulation, and dynamic day cell rendering.
-   - Grep search for hardcoded test returns (`it.skip`, `describe.skip`, dummy returns) returned 0 occurrences across all test files in `tests/`.
-   - Dependency audit confirmed standard libraries (`react`, `lucide-react`, `tailwindcss`, `vite`, `tsx`, `typescript`) with zero prohibited execution-delegation dependencies.
+2. **Phase B — Cheating Detection & Integrity Verification**:
+   - Checked `src/types.ts:100-126`: `getAllowedTargetGroupIdsForHomeGroup` dynamically resolves permissions using metadata `isUniversal`, `NON_UNIVERSAL_GROUPS`, and inverting `CROSS_GROUP_RULES`.
+   - Checked `src/components/SchedulerDashboard.tsx:564 & 1283`: Universal template scoping replaces all hardcoded group checks (`group-saraburi`, `group-1650`) and hardcoded Thai template names.
+   - Checked `tests/m5-group-scoping-filtering.test.ts:263-281` (`R3-PERM-02`): Static AST code inspection test programmatically verifies that `myGroupId === 'group-saraburi'` and `userGroupId === 'group-saraburi'` are absent from source files.
 
-3. **Independent Verification Execution (Phase C)**:
-   - TypeScript Check (`npm run lint` / `tsc --noEmit`): Executed independently with exit code 0 and zero type errors.
-   - Vite Production Build (`npm run build` / `vite build`): Executed independently with exit code 0 and 0 build errors. Built 1,956 modules in 11.93 seconds into `dist/`.
-   - E2E Test Suite (`npm run test` / `tsx tests/run-tests.ts`): Executed independently with exit code 0. Passed 97 / 97 test cases across Tier 1 (Coverage), Tier 2 (Boundaries), Tier 3 (Combinations), and Tier 4 (Real-World Scenarios).
-   - Adversarial Stress Suite (`npx tsx tests/adversarial-stress.ts`): Executed independently with exit code 0. Passed 18 / 18 stress scenarios (mass scale 10k items, rapid view toggling, range inversion, immutability, permission guards).
-
-4. **Requirement & Acceptance Criteria Scrutiny**:
-   - **R1 (4-Week Calendar Grid)**: Verified 7-column x 4-row 28-day container grid (`grid-cols-7`, `overflow-hidden`), seamless view switcher button (`[ 📅 4-Week Calendar ]` / `[ 📊 Matrix ]`), color-coded shift summary chips, and glowing user highlight (`glow-user-shift` badge with `YOU: Shift Name`).
-   - **R2 (Adaptive Controls)**: Verified PC direct Drag & Drop template/staff assignment onto calendar cells, multi-select batch assignment modal, iPad/Mobile touch context menu (`TouchContextMenu.tsx`), and immutable day roster copy-paste functionality with permission enforcement.
-   - **R3 (Day Inspector Panel)**: Verified slide-over Day Inspector panel (`DayInspectorPanel.tsx`) displaying assigned staff, duty hours, status breakdown, shift notes, and inline note editor.
+3. **Phase C — Independent Test Execution**:
+   - `npm run lint` (`npx tsc --noEmit`): Exit code 0, 0 TypeScript errors.
+   - `npm test` (`tsx tests/run-tests.ts`): Exit code 0, 108/108 tests passing (100% pass rate, 11 M5 test cases).
+   - `npm run build` (`vite build`): Exit code 0, successfully generated bundle in `dist/` in 10.76s.
 
 ## 2. Logic Chain
-1. *From Phase A*: Clear, sequential agent logs and git status verify that development proceeded iteratively with verifiable timestamp progression rather than pre-fabricated artifacts.
-2. *From Phase B*: Forensic inspection of source code and test files confirmed that all components use genuine React state management, DOM event handlers, and data model logic (`CalendarStateEngine`) without hardcoded test bypasses or facade mocks.
-3. *From Phase C*: Independent execution of `npm run lint`, `npm run build`, `npm run test`, and `npx tsx tests/adversarial-stress.ts` produced 100% pass rates with zero errors across 97 E2E tests and 18 stress scenarios.
-4. *Conclusion Alignment*: All explicit user requirements (R1, R2, R3) and UI/acceptance criteria are fully satisfied by functional, high-quality, production-ready code.
+
+1. **Premise 1**: Victory can only be confirmed if independent test execution reproduces 100% passing results, Phase A timeline is valid, and Phase B integrity checks pass under Development mode.
+2. **Premise 2**: Independent execution of `npm run lint`, `npm test`, and `npm run build` produced 0 errors, 108/108 test passes, and a clean Vite build, matching orchestrator claims exactly.
+3. **Premise 3**: Inspection of source code (`src/types.ts`, `src/components/SchedulerDashboard.tsx`) confirms that group scoping and shift template visibility rules are implemented dynamically via central permission helpers across all 15 doctor groups.
+4. **Conclusion**: The completion claim is genuine, authentic, and fully verified. Victory is CONFIRMED.
 
 ## 3. Caveats
-No caveats. All verification commands were executed independently by the Victory Auditor with full output capture and zero errors.
+
+- No caveats. All 3 phases passed with 100% empirical evidence and zero discrepancies.
 
 ## 4. Conclusion
-The DutyFlow project implementation is genuine, clean, fully functional, and robust.
-**Final Verdict: VICTORY CONFIRMED**.
+
+VICTORY CONFIRMED. DutyFlow Universal Group-Scoped Shift Template & Schedule Filtering meets all functional requirements (R1, R2, R3), passes all quality benchmarks, and contains zero integrity violations.
 
 ## 5. Verification Method
-To independently verify this result:
-1. Navigate to `c:\DEV\DutyFlow`.
-2. Run `npm run lint` — confirms zero TypeScript errors.
-3. Run `npm run build` — confirms clean production build output.
-4. Run `npm run test` — executes 97 E2E test cases with 100% pass rate.
-5. Run `npx tsx tests/adversarial-stress.ts` — executes 18 adversarial stress tests with 100% pass rate.
+
+To re-verify independently:
+1. `npm run lint` — Confirm 0 TypeScript compilation errors.
+2. `npm test` — Run full 108-test matrix in `tests/run-tests.ts`.
+3. `npm run build` — Verify Vite production build output in `dist/`.

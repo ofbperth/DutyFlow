@@ -21,6 +21,8 @@ The 4-Week Calendar View feature introduces:
 | M2  | Adaptive Desktop & Mobile Scheduling Controls | Implement Drag & Drop, Batch Assign, Touch Context Menu, Copy/Paste Day roster | M1 | DONE |
 | M3  | Day Inspector Panel & Dashboard Integration | Implement Day Inspector panel, integrate with UserDashboard and SchedulerDashboard | M2 | DONE |
 | M4  | E2E Testing Pass & Forensic Audit | Run full test suite, verify build/tsc, perform adversarial coverage & forensic integrity audit | M3 | DONE |
+| M5  | Universal Group-Scoped Template & Schedule Filtering | Refactor template and schedule filtering across all groups via central permission helpers | M4 | DONE |
+| M6  | Verification & Forensic Integrity Audit | Run test suite, lint, build, reviewer check, and forensic audit | M5 | DONE |
 
 ## Interface Contracts
 ### View Switcher & Calendar View Props

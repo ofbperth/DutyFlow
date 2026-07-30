@@ -1,23 +1,24 @@
-# BRIEFING — 2026-07-30T13:14:30Z
+# BRIEFING — 2026-07-30T12:15:18Z
 
 ## Mission
-Coordinate the execution of DutyFlow UI/UX fixes and verification by dispatching and monitoring the Project Orchestrator, running status crons, and running a Victory Audit upon project completion.
+Monitor project orchestrator and verify completion via victory auditor for universal group-based shift template and schedule filtering in DutyFlow.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: c:\DEV\DutyFlow\.agents\sentinel
-- Orchestrator: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
-- Victory Auditor: 3a1c9736-f467-4947-83d6-ea48a05b73bd
+- Orchestrator: e99a297c-c2b8-4feb-a58d-f1411995b613
+- Victory Auditor: b013529a-01f0-46c4-9e93-9f6f88832e74
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- Must not write code, analyze problems, or make any technical decisions
+- Must run progress reporting and liveness crons for orchestrator
+- Ultra-light context
 
 ## User Context
-- **Last user request**: Fix 4 critical UI/UX issues in DutyFlow's Scheduler and 4-Week Calendar views, ensure all features function smoothly, verify with build tests, and perform git commit & push.
+- **Last user request**: Fix group-based shift template and schedule filtering in DutyFlow across all doctor groups.
 - **Pending clarifications**: none
-- **Delivered results**: 4 critical UI/UX fixes implemented, verified with build tests, audited, committed, and pushed to origin/main.
+- **Delivered results**: none
 
 ## Project Status
 - **Phase**: complete
@@ -29,8 +30,3 @@ Coordinate the execution of DutyFlow UI/UX fixes and verification by dispatching
 
 ## Artifact Index
 - c:\DEV\DutyFlow\.agents\ORIGINAL_REQUEST.md — Original User Request
-- c:\DEV\DutyFlow\.agents\orchestrator\plan.md — Orchestrator Plan
-- c:\DEV\DutyFlow\.agents\orchestrator\progress.md — Orchestrator Progress
-- c:\DEV\DutyFlow\.agents\orchestrator\handoff.md — Orchestrator Handoff
-- c:\DEV\DutyFlow\.agents\victory_auditor\handoff.md — Victory Auditor Handoff
-- c:\DEV\DutyFlow\.agents\sentinel\handoff.md — Sentinel Handoff
