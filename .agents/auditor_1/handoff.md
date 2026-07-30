@@ -1,76 +1,114 @@
-# Handoff Report — Forensic Auditor 1
+# Handoff Report: Forensic Integrity Audit — Milestone 7 (UI/UX Refactoring & Enhancements R1-R6)
 
 ## 1. Observation
 
-- **Vite Production Build (`npm run build`)**: Exited with code `0`. Built in 22.81s (`dist/index.html`, `dist/assets/index-EIE1cd3N.js` 1,529 kB).
-- **TypeScript Typecheck (`npm run lint` / `tsc --noEmit`)**: Exited with code `1` (FAIL).
-  - Error snippet: `src/components/FourWeekCalendarView.tsx(114,16): error TS2304: Cannot find name 'Layers'.`
-  - Verbatim check on line 2 of `FourWeekCalendarView.tsx`: `import { Calendar, LayoutGrid, Sparkles, Check, Copy, MoreVertical } from 'lucide-react';` (missing `Layers`).
-- **Main Test Suite (`npm test`)**: 97 of 97 test cases passed (0 failures).
-- **Requirements Empirical Verification (`npx tsx tests/r1-r4-verification.ts`)**:
-  - `[FAIL] R1: Drag & Drop Shift Template onto Calendar Cell Staff Selection Prompt`
-    - `handleCalendarDropShift assigns shift directly to currentUser.id: false`
-    - `handleCalendarDropShift triggers staff selection modal prompt: false`
-  - `[PASS] R2: Upper Control Panel "Batch Assign" Button Opens BatchAssignModal`
-  - `[PASS] R3: Relocation of "Manage Group" Button to AdminDashboard.tsx`
-  - `[PASS] R4: Modal Container Backdrop Blur Styling Standard`
-- **Facade / Hardcode Inspection**: Checked `src/components/FourWeekCalendarView.tsx`, `src/components/SchedulerDashboard.tsx`, `src/components/AdminDashboard.tsx`, `src/components/BatchAssignModal.tsx`, `src/components/GroupManagerModal.tsx`, `src/components/AssignShiftModal.tsx`. Zero dummy facades, mock returns, or fake data were found. Implementation code is authentic React logic.
+### Audited Target Files & Forensic Observations
+
+1. **`src/components/FourWeekCalendarView.tsx`**
+   - Line 176: `const isWeekendOrHoliday = isWeekend || Boolean(holiday);` correctly unifies non-working day detection.
+   - Lines 228 & 238: Shared Tailwind styling `bg-blue-500/10 border-blue-500/30 hover:border-blue-500/40 hover:bg-blue-500/15` and `text-blue-400` applied to all weekend days and holidays.
+
+2. **`src/components/SchedulerDashboard.tsx`**
+   - R1: Matrix column header cells receive `bg-blue-500/10 text-blue-400 font-semibold border-b border-blue-500/30` for `isHoliday || isWeekend`.
+   - R2: Removed `showShiftBalance` state, `useEffect` dependencies, and upper action panel "Shift Balance" button. Zero unused residual references.
+   - R3: Integrated `exportScheduleToPDF` from `../utils/pdfExport`.
+   - R5: Compact card badge container `<div className="mt-1">` renders status badges underneath shift times.
+
+3. **`src/components/UserDashboard.tsx`**
+   - R1: Matrix column header styling matches SchedulerDashboard.
+   - R5: Status badges positioned below shift time in matrix view.
+   - R6: Role selector options restricted to `'user'` and `'scheduler'` for non-admin users.
+
+4. **`src/components/PooledShiftsDashboard.tsx`**
+   - R1: Matrix column header cell styling matches consistent non-working day theme (`bg-blue-500/10 text-blue-400`).
+
+5. **`src/components/DayInspectorPanel.tsx`**
+   - R4: Header metrics cards ("Assigned Staff", "Total Hours", "Status Ratio") are removed.
+   - Preserved `calculateShiftHours` helper and Quick Actions bar ("Staff Roster Breakdown" and "+ Add Shift" button).
+
+6. **`src/utils/pdfExport.ts`**
+   - R3: `exportScheduleToPDF` strictly scopes output to home group staff and currentUser's own cross-group shifts (`targetGroupId !== myHomeGroupId`).
+   - Unicode safety helpers `getShiftShortCode` and `getSafeUserName` convert Thai UTF-16 strings to safe ASCII codes, avoiding jsPDF rendering crashes.
+   - Dark slate pagination re-rendering implemented for multi-page PDF generation.
+
+7. **`firestore.rules`**
+   - R6: Rule for `/users/{userId}` update operation:
+     ```firestore
+     allow update: if isAuthenticated() && (
+       isAdmin() ||
+       (isOwner(userId) && (
+         request.resource.data.role == 'user' ||
+         request.resource.data.role == 'scheduler' ||
+         request.resource.data.role == resource.data.role
+       )) ||
+       (isScheduler() && resource.data.isVirtual == true && request.resource.data.role == resource.data.role)
+     );
+     ```
+     Enables self-role switching between `'user'` and `'scheduler'` while preventing self-elevation to `'admin'`.
+
+8. **`src/components/Navbar.tsx`**
+   - R6: Role dropdown options restricted to `'user'` and `'scheduler'` unless logged in user is already an admin.
+
+9. **`src/App.tsx`**
+   - R6: `handleRoleChange` updates local `currentUser` state, `users` array state, and clears error messages.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Observation 1**: Line 114 of `FourWeekCalendarView.tsx` uses `<Layers className="h-4 w-4" />`, but `Layers` is not in the imports from `'lucide-react'` on line 2.
-2. **Step 1**: Running `tsc --noEmit` fails with `error TS2304: Cannot find name 'Layers'`.
-3. **Step 2**: While `npm run build` (Vite) passes because esbuild strips types without invoking `tsc`, any project typecheck/lint step fails due to this missing import.
-4. **Observation 2**: `AssignShiftModal.tsx` was authored for requirement R1, but `SchedulerDashboard.tsx:handleCalendarDropShift` assigns dropped shifts directly to `currentUser.id` without opening `AssignShiftModal`.
-5. **Step 3**: Running `npx tsx tests/r1-r4-verification.ts` confirms R1 fails due to direct assignment instead of triggering the staff selector modal prompt.
-6. **Conclusion Step**: Per Integrity Forensics rules ("If ANY check fails, the verdict is INTEGRITY VIOLATION / VIOLATION"), the work product must be rejected.
+1. **R1**: Public holidays and weekends represent non-working/special duty days. Applying identical CSS classes (`bg-blue-500/10 border-blue-500/30 text-blue-400`) across `FourWeekCalendarView`, `SchedulerDashboard`, `UserDashboard`, and `PooledShiftsDashboard` ensures visual consistency across the entire UI.
+2. **R2**: `showShiftBalance` was an unused feature modal placeholder. Clean removal declutters the upper panel without breaking active shift features or components.
+3. **R3**: Standard jsPDF fonts throw errors on non-ASCII Thai strings. Mapping template names to ASCII shortcodes (`WD`, `HD`, `M`, `A`, `N`, `SRB`, `1650`) and sanitizing user names prevents crashes while generating clean A4 landscape PDFs. Filtering users by `myHomeGroupId` ensures strict privacy and scoping compliance.
+4. **R4**: The top metric cards in `DayInspectorPanel` consumed excessive modal height. Removing them while retaining `calculateShiftHours` keeps shift card hour calculations intact without unused lint warnings.
+5. **R5**: Moving status badges to a block container below shift times reduces horizontal width competition between shift names and status tags, making matrix view cells compact.
+6. **R6**: Document owners were previously blocked from changing `role` by `request.resource.data.role == resource.data.role`. Allowing owners to specify `'user'` or `'scheduler'` enables self-role switching while blocking unauthorized self-promotion to `'admin'`.
 
 ---
 
-## 3. Caveats
+## 3. Forensic Integrity Audit & Static Analysis
 
-- All implementations in `src/components/` are 100% genuine React logic without any cheating, hardcoded strings, or dummy data.
-- The failures detected are implementation defects (missing import and un-wired modal state trigger) rather than intentional fraud/facades.
-- `npm run build` succeeds synchronously because Vite does not run `tsc --noEmit` by default.
-
----
-
-## 4. Conclusion
-
-**Final Binary Verdict**: **`VIOLATION`**
-
-The codebase contains:
-1. A TypeScript build/typecheck compilation error (`TS2304: Cannot find name 'Layers'` in `FourWeekCalendarView.tsx`).
-2. An unfulfilled workflow integration for requirement R1 (`handleCalendarDropShift` in `SchedulerDashboard.tsx` bypasses `AssignShiftModal`).
+- **Hardcoded Test Outputs**: 0 found.
+- **Facade Implementations / Dummy Functions**: 0 found.
+- **Mocked Test Bypasses**: 0 found.
+- **Pre-populated Artifacts**: None.
+- **Authenticity Assessment**: All implementations and tests are genuine and functional.
 
 ---
 
-## 5. Verification Method
+## 4. Conclusion & Final Verdict
 
-To verify these findings independently, execute:
+**Work Product**: DutyFlow Milestone 7 (UI/UX Refactoring & Enhancements R1-R6)
+**Profile**: General Project
+**Verdict**: **CLEAN**
 
-1. **TypeScript Typecheck**:
-   ```bash
-   npm run lint
-   ```
-   *Expected Output*: Exit code `1` with `error TS2304: Cannot find name 'Layers'` at `FourWeekCalendarView.tsx(114,16)`.
+All 6 requirements (R1-R6) have been implemented genuinely, without facade functions or hardcoded bypasses. The build and test suites pass cleanly across all targets.
 
-2. **Empirical R1-R4 Verification**:
-   ```bash
-   npx tsx tests/r1-r4-verification.ts
-   ```
-   *Expected Output*: `[FAIL] R1: Drag & Drop Shift Template onto Calendar Cell Staff Selection Prompt` and `VERDICT: FAIL`.
+---
 
-3. **Vite Build Verification**:
-   ```bash
-   npm run build
-   ```
-   *Expected Output*: Exit code `0`, `built in ~22s`.
+## 5. Verification Method & Command Outputs
 
-4. **Main Test Suite**:
-   ```bash
-   npm test
-   ```
-   *Expected Output*: 97 tests passed, 0 failed.
+### 1. TypeScript Type Check (`npm run lint` / `npx tsc --noEmit`)
+```bash
+npx tsc --noEmit
+```
+**Result**: Executed cleanly with **0 errors**.
+
+### 2. E2E & Unit Test Suite (`npm test` / `npx tsx tests/run-tests.ts`)
+```bash
+npx tsx tests/run-tests.ts
+```
+**Result**: **119 out of 119 test cases passed** (100% pass rate).
+
+### 3. Production Build Verification (`npm run build` / `npx vite build`)
+```bash
+npx vite build
+```
+**Result**: Production build completed successfully in 11.96s:
+```
+dist/index.html                              0.91 kB │ gzip:   0.51 kB
+dist/assets/index-DgMKCech.css              76.79 kB │ gzip:  12.40 kB
+dist/assets/purify.es-Jn2rvFN8.js           28.91 kB │ gzip:  10.90 kB
+dist/assets/index.es-CCQwFzEY.js           159.60 kB │ gzip:  53.52 kB
+dist/assets/html2canvas.esm-QH1iLAAe.js    202.38 kB │ gzip:  48.04 kB
+dist/assets/index-B4fJ52jD.js            1,536.26 kB │ gzip: 419.35 kB
+```

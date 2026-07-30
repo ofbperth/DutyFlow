@@ -1,13 +1,13 @@
-# BRIEFING — 2026-07-30T12:15:18Z
+# BRIEFING — 2026-07-30T14:29:31Z
 
 ## Mission
-Monitor project orchestrator and verify completion via victory auditor for universal group-based shift template and schedule filtering in DutyFlow.
+Monitor project orchestrator and verify completion via victory auditor for DutyFlow calendar highlights, rotation schedule UI panels cleanup, PDF export fixes, day inspector simplification, and matrix view shift card optimization.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: c:\DEV\DutyFlow\.agents\sentinel
-- Orchestrator: e99a297c-c2b8-4feb-a58d-f1411995b613
-- Victory Auditor: b013529a-01f0-46c4-9e93-9f6f88832e74
+- Orchestrator: 84922272-9b34-4eb1-a295-322807ed91b9
+- Victory Auditor: 249db660-eb9e-44c6-bf27-a5f60554a9e5
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -16,7 +16,7 @@ Monitor project orchestrator and verify completion via victory auditor for unive
 - Ultra-light context
 
 ## User Context
-- **Last user request**: Fix group-based shift template and schedule filtering in DutyFlow across all doctor groups.
+- **Last user request**: Refactor DutyFlow R1-R5 and add R6: Allow self-role switching between user and scheduler, updating UI and Firestore rules.
 - **Pending clarifications**: none
 - **Delivered results**: none
 

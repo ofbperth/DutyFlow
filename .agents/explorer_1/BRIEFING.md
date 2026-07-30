@@ -1,36 +1,36 @@
-# BRIEFING — 2026-07-30T13:09:26+07:00
+# BRIEFING — 2026-07-30T21:33:35Z
 
 ## Mission
-Analyze DutyFlow codebase to prepare precise implementation instructions for 4 UI/UX requirements (R1 Drag & Drop Staff Selector Modal, R2 Upper Panel Batch Assign Trigger, R3 Relocate Manage Group to Admin Menu, R4 Fixed Centered Positioning for Modals & Popups on Scroll).
+Investigate R1 (Calendar Mode Holiday & Weekend Highlight Consistency) and R2 (Remove Shift Balance from Rotation Schedule Top Panel) for DutyFlow and produce handoff instructions in handoff.md.
 
 ## 🔒 My Identity
-- Archetype: Teamwork Explorer
-- Roles: explorer_1
+- Archetype: Explorer
+- Roles: Teamwork explorer
 - Working directory: c:\DEV\DutyFlow\.agents\explorer_1
-- Original parent: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
-- Milestone: DutyFlow 4 UI/UX Requirements Architecture & Analysis
+- Original parent: 84922272-9b34-4eb1-a295-322807ed91b9
+- Milestone: Milestone 7
 
 ## 🔒 Key Constraints
-- Read-only investigation — do NOT implement project source code changes
-- Store analysis in c:\DEV\DutyFlow\.agents\explorer_1\analysis.md
-- Store handoff report in c:\DEV\DutyFlow\.agents\explorer_1\handoff.md
-- Notify parent orchestrator via send_message when complete
+- Read-only investigation — do NOT implement code changes in src/
+- Deliver analysis and step-by-step implementation instructions in handoff.md
+- Report findings and progress
 
 ## Current Parent
-- Conversation ID: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
-- Updated: 2026-07-30T13:09:26+07:00
+- Conversation ID: 84922272-9b34-4eb1-a295-322807ed91b9
+- Updated: 2026-07-30T21:33:35Z
 
 ## Investigation State
-- **Explored paths**: TBD
-- **Key findings**: TBD
-- **Unexplored areas**: R1, R2, R3, R4 implementation details
+- **Explored paths**: `src/components/FourWeekCalendarView.tsx`, `src/components/SchedulerDashboard.tsx`, `src/components/UserDashboard.tsx`, `src/components/PooledShiftsDashboard.tsx`
+- **Key findings**:
+  - R1: In `FourWeekCalendarView.tsx`, day cells currently lack background/border highlights for non-working days (weekends/holidays), while day numbers use disparate colors (`text-rose-400` vs `text-blue-400`). In matrix headers, `isHoliday` uses `bg-blue-500/10 text-blue-400 font-semibold` while `isWeekend` uses `bg-white/5 text-slate-400`. Consolidating logic under `isWeekendOrHoliday` with `bg-blue-500/10 border-blue-500/30 text-blue-400` ensures identical highlights across all schedule views.
+  - R2: In `SchedulerDashboard.tsx`, `showShiftBalance` state (line 59), useEffect dependencies (lines 103, 109), and top panel button (lines 814-819) need removal. No `ShiftBalanceModal.tsx` file exists and no modal JSX is rendered. `BarChart3` import must be kept for line 1164.
+- **Unexplored areas**: None (R1 & R2 fully investigated).
 
 ## Key Decisions Made
-- Starting systematic investigation of src/components/ for requirements R1, R2, R3, R4.
+- Provided exact Tailwind classes (`bg-blue-500/10 border-blue-500/30 text-blue-400`) and line-by-line instructions in `handoff.md`.
 
 ## Artifact Index
-- c:\DEV\DutyFlow\.agents\explorer_1\ORIGINAL_REQUEST.md — Original request instructions
-- c:\DEV\DutyFlow\.agents\explorer_1\BRIEFING.md — Working memory index
-- c:\DEV\DutyFlow\.agents\explorer_1\progress.md — Progress log & liveness heartbeat
-- c:\DEV\DutyFlow\.agents\explorer_1\analysis.md — Technical design & strategy analysis
-- c:\DEV\DutyFlow\.agents\explorer_1\handoff.md — 5-component handoff report
+- c:\DEV\DutyFlow\.agents\explorer_1\ORIGINAL_REQUEST.md — User request
+- c:\DEV\DutyFlow\.agents\explorer_1\BRIEFING.md — Context and briefing
+- c:\DEV\DutyFlow\.agents\explorer_1\progress.md — Liveness heartbeat
+- c:\DEV\DutyFlow\.agents\explorer_1\handoff.md — Final deliverable handoff report

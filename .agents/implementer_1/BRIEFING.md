@@ -1,53 +1,66 @@
-# BRIEFING — 2026-07-30T06:12:20Z
+# BRIEFING — 2026-07-30T21:40:30Z
 
 ## Mission
-Implement the 4 UI/UX requirements for DutyFlow (Direct Drag & Drop Staff Selector Modal, Upper Panel Batch Assign Trigger, Relocate Manage Group to Admin Menu, Fixed Centered Positioning for Modals & Popups on Scroll) and verify build clean.
+Implement Milestone 7 (UI/UX Refactoring & Enhancements R1-R6) for DutyFlow.
 
 ## 🔒 My Identity
 - Archetype: implementer
 - Roles: implementer, qa, specialist
 - Working directory: c:\DEV\DutyFlow\.agents\implementer_1
-- Original parent: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
-- Milestone: UI/UX Enhancements & Refactoring
+- Original parent: 84922272-9b34-4eb1-a295-322807ed91b9
+- Milestone: Milestone 7
 
 ## 🔒 Key Constraints
-- CODE_ONLY network mode.
-- Minimal change principle. No hardcoded test results or facades.
-- All code must pass `npm run build` with 0 errors.
+- CODE_ONLY network mode
+- Integrity mandate: genuine implementation, no hardcoding
+- Follow exact instructions from 4 explorer handoff reports
+- Run lint, test, build verification commands
 
 ## Current Parent
-- Conversation ID: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
-- Updated: 2026-07-30T06:12:20Z
+- Conversation ID: 84922272-9b34-4eb1-a295-322807ed91b9
+- Updated: 2026-07-30T21:40:30Z
 
 ## Task Summary
-- **What to build**: 
-  1. R1: Direct Drag & Drop Staff Selector Modal (`AssignShiftModal.tsx`).
-  2. R2: Upper Panel Batch Assign Trigger in SchedulerDashboard & FourWeekCalendarView.
-  3. R3: Relocate Manage Group trigger to AdminDashboard.
-  4. R4: Fixed Centered Positioning for Modals & Popups on Scroll (`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`).
-- **Success criteria**: Clean compilation with `npm run build` (PASSED - 0 errors in 13.71s).
+- **What to build**: R1-R6 UI/UX enhancements and refactoring.
+- **Success criteria**: All 6 requirements implemented genuinely. All verification commands pass (`npx tsc --noEmit`, `npx tsx tests/run-tests.ts`, `npx vite build`).
+- **Interface contracts**: Specified in explorer handoff reports and SCOPE.md.
+- **Code layout**: React / TypeScript components in `src/components/`, utilities in `src/utils/`, Firestore security rules in `firestore.rules`.
 
 ## Key Decisions Made
-- Created modular `src/components/AssignShiftModal.tsx` for staff selection upon shift template drag & drop or panel add.
-- Added glowing "Batch Assign" gradient buttons to `SchedulerDashboard.tsx` control panel and `FourWeekCalendarView.tsx` top toolbar.
-- Moved `GroupManagerModal` access trigger and state to `AdminDashboard.tsx`.
-- Standardized modal backdrop container CSS across all 17 modal backdrops in the codebase.
-
-## Artifact Index
-- ORIGINAL_REQUEST.md — Original request instructions
-- progress.md — Heartbeat and step log
-- changes.md — Change log details
-- handoff.md — Final handoff report
+- Created `src/utils/pdfExport.ts` for clean, error-free PDF export strictly scoped to home group staff and user's own cross-group shifts, using safe ASCII fallback shortcodes and names.
+- Updated calendar and matrix views for R1 to highlight weekend and holiday headers consistently.
+- Removed Shift Balance button from top panel for R2 while preserving BarChart3 icon for workload section.
+- Simplified DayInspectorPanel header for R4, removing 3 metric cards while retaining calculateShiftHours helper and roster action subheader.
+- Re-arranged matrix shift card status badges underneath shift times for R5.
+- Updated `firestore.rules`, `Navbar.tsx`, `UserDashboard.tsx`, and `App.tsx` for R6 self-role switching between 'user' and 'scheduler'.
+- Created `tests/m7-ui-ux-enhancements.test.ts` to test PDF export utilities and integrated with `tests/run-tests.ts`.
 
 ## Change Tracker
-- **Files modified**: `src/components/AssignShiftModal.tsx`, `src/types.ts`, `src/components/FourWeekCalendarView.tsx`, `src/components/SchedulerDashboard.tsx`, `src/components/AdminDashboard.tsx`, `src/components/BatchAssignModal.tsx`, `src/components/GroupManagerModal.tsx`, `src/components/DayInspectorPanel.tsx`, `src/components/TouchContextMenu.tsx`, `src/components/RotationRearrangerModal.tsx`, `src/components/UserDashboard.tsx`, `src/components/PooledShiftsDashboard.tsx`.
-- **Build status**: PASS (`npm run build` completed cleanly)
+- **Files modified**:
+  - `src/components/FourWeekCalendarView.tsx` — R1 holiday & weekend styling consistency
+  - `src/components/SchedulerDashboard.tsx` — R1 matrix header styling, R2 remove shift balance, R3 integrate pdfExport, R5 compact shift cards
+  - `src/components/UserDashboard.tsx` — R1 matrix header styling, R5 compact shift cards
+  - `src/components/PooledShiftsDashboard.tsx` — R1 matrix header styling
+  - `src/utils/pdfExport.ts` — R3 PDF export engine with scoping & encoding safety (new file)
+  - `src/components/DayInspectorPanel.tsx` — R4 remove header metrics grid
+  - `firestore.rules` — R6 allow self-role update between user and scheduler
+  - `src/components/Navbar.tsx` — R6 restrict self-service dropdown options for non-admins
+  - `src/App.tsx` — R6 sync user array state on self-role change
+  - `tests/m7-ui-ux-enhancements.test.ts` — Unit tests for M7 PDF export functions (new file)
+  - `tests/run-tests.ts` — Integrate M7 test suite into runner
+- **Build status**: PASS (`npx tsc --noEmit` 0 errors, `npx tsx tests/run-tests.ts` 111/111 passed, `npx vite build` 0 errors)
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: PASS (Vite build output generated cleanly)
-- **Lint status**: PASS
-- **Tests added/modified**: Verified build compilation
+- **Build/test result**: PASS (111/111 tests passed)
+- **Lint status**: Clean (0 TypeScript errors)
+- **Tests added/modified**: `tests/m7-ui-ux-enhancements.test.ts` added
 
 ## Loaded Skills
-- None
+- None required.
+
+## Artifact Index
+- ORIGINAL_REQUEST.md — Original request instructions
+- BRIEFING.md — Persistent context briefing
+- progress.md — Heartbeat & progress tracker
+- handoff.md — Final implementation handoff report

@@ -1,13 +1,17 @@
-## 2026-07-30T06:11:48Z
-You are Reviewer 2, working in directory `c:\DEV\DutyFlow\.agents\reviewer_2`.
+## 2026-07-30T14:40:34Z
+You are Reviewer 2 conducting security, permissions, and UI consistency review for DutyFlow Milestone 7 (R1-R6).
+Your working directory is: c:\DEV\DutyFlow\.agents\reviewer_2
 
-Your task is to re-verify the remediated DutyFlow UI/UX requirements (R1-R5):
+Read the scope document in c:\DEV\DutyFlow\.agents\orchestrator\SCOPE.md and the worker handoff report at c:\DEV\DutyFlow\.agents\implementer_1\handoff.md.
 
-1. **R1. Direct Drag & Drop Staff Selector Modal**: Inspect `SchedulerDashboard.tsx` and `FourWeekCalendarView.tsx`. Verify dragging & dropping a shift template onto a calendar date cell opens a staff selection modal/prompt asking which staff member (doctor) to assign to that shift for that date (verify NO hardcoded auto-assign to `currentUser.id`).
-2. **R2. Upper Panel Batch Assign Trigger**: Inspect `SchedulerDashboard.tsx` and `FourWeekCalendarView.tsx` upper control panel bars. Verify a prominent "Batch Assign" button is present in the main upper control panel header bar and opens `BatchAssignModal`.
-3. **R3. Relocate Manage Group to Admin Menu**: Inspect `SchedulerDashboard.tsx` and `AdminDashboard.tsx`. Verify "Manage Groups" button is REMOVED from `SchedulerDashboard.tsx` and is strictly housed within `AdminDashboard.tsx`.
-4. **R4. Fixed Centered Positioning for Modals & Popups on Scroll**: Inspect modal backdrops (`BatchAssignModal.tsx`, `GroupManagerModal.tsx`, `DayInspectorPanel.tsx`, `TouchContextMenu.tsx`, `RotationRearrangerModal.tsx`, etc.). Verify fixed centered backdrop overlay styling: `fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto`.
-5. **Build Verification**: Run `npm run build` and verify 0 errors.
+Tasks:
+1. Review R6 self-role switching implementation in `firestore.rules`, `src/components/Navbar.tsx`, `src/App.tsx`, and `src/components/UserDashboard.tsx`.
+   - Verify `firestore.rules` allows users to switch between 'user' and 'scheduler' without permission errors.
+   - Verify non-admin users CANNOT elevate their role to 'admin'.
+2. Review R1-R5 implementations for security, group isolation, and UI consistency.
+3. Run verification commands:
+   - `npm run lint` (`npx tsc --noEmit`)
+   - `npm test` (`npx tsx tests/run-tests.ts`)
+   - `npm run build` (`npx vite build`)
 
-Write your report in `c:\DEV\DutyFlow\.agents\reviewer_2\review.md` and `handoff.md`. Include a clear final verdict: `APPROVE` or `REJECT`.
-Send a message back to parent when completed.
+Deliver your report in `c:\DEV\DutyFlow\.agents\reviewer_2\handoff.md` with an explicit final verdict: **ACCEPT** or **REJECT**. Send a message to the orchestrator upon completion.

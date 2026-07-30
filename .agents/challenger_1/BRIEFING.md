@@ -1,45 +1,61 @@
-# BRIEFING — 2026-07-30T06:12:30Z
+# BRIEFING — 2026-07-30T14:43:30Z
 
 ## Mission
-Empirical verification and stress testing of 4 UI/UX requirements (R1, R2, R3, R4) and build verification for DutyFlow.
+Empirically verify and stress-test DutyFlow Milestone 7 (R1-R6) implementation correctness and execute full test suite & build verification.
 
 ## 🔒 My Identity
 - Archetype: EMPIRICAL CHALLENGER
 - Roles: critic, specialist
 - Working directory: c:\DEV\DutyFlow\.agents\challenger_1
-- Original parent: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
-- Milestone: UI/UX Requirement Verification
+- Original parent: 84922272-9b34-4eb1-a295-322807ed91b9
+- Milestone: Milestone 7 (R1-R6)
 - Instance: 1 of 1
 
 ## 🔒 Key Constraints
-- Empirically test requirements with code execution and static/dynamic checks
-- Stress test assumptions, find failure modes, test edge cases
-- Write results to challenge.md and handoff.md
-- Include clear final verdict: PASS or FAIL
+- Review-only — do NOT modify implementation code
+- Verification code and empirical testing must be run directly by me
+- Do NOT trust worker's claims or logs
+- Verification result must be PASS or FAIL with evidence
 
 ## Current Parent
-- Conversation ID: eab746fa-37bb-45a8-9baf-68bdcfa13fe1
-- Updated: 2026-07-30T06:12:30Z
+- Conversation ID: 84922272-9b34-4eb1-a295-322807ed91b9
+- Updated: 2026-07-30T14:43:30Z
 
 ## Review Scope
-- **Files to review**: SchedulerDashboard.tsx, AdminDashboard.tsx, BatchAssignModal.tsx, AssignShiftModal.tsx, GroupManagerModal.tsx, all modal containers
-- **Requirements**:
-  - R1: Drag & drop shift template onto calendar cell triggers staff selection modal prompt. (VERIFIED: PASS)
-  - R2: Upper control panel "Batch Assign" button in `SchedulerDashboard.tsx` opens `BatchAssignModal`. (VERIFIED: PASS)
-  - R3: "Manage Group" button relocated to `AdminDashboard.tsx` and absent from `SchedulerDashboard.tsx`. (VERIFIED: PASS)
-  - R4: Modal container styling across popups includes `fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm`. (VERIFIED: PASS)
-  - Build: `npm run build` and tests pass without errors. (VERIFIED: PASS)
+- **Files to review**:
+  - R1: `src/components/FourWeekCalendarView.tsx`, `src/components/SchedulerDashboard.tsx`, `src/components/UserDashboard.tsx`, `src/components/PooledShiftsDashboard.tsx`
+  - R2: `src/components/SchedulerDashboard.tsx`
+  - R3: `src/utils/pdfExport.ts`, `src/components/SchedulerDashboard.tsx`
+  - R4: `src/components/DayInspectorPanel.tsx`
+  - R5: `src/components/SchedulerDashboard.tsx`, `src/components/UserDashboard.tsx`
+  - R6: `firestore.rules`, `src/components/Navbar.tsx`, `src/App.tsx`
+- **Interface contracts**: `c:\DEV\DutyFlow\.agents\orchestrator\SCOPE.md`
+- **Review criteria**: Empirical correctness, edge case resilience, full test suite pass, lint pass, build pass.
 
 ## Key Decisions Made
-- Executed `npm run build` (0 errors).
-- Executed `npm run test` (97/97 E2E tests pass).
-- Executed `npx tsx tests/r1-r4-verification.ts` (All 4 UI/UX requirements PASS).
-- Generated `challenge.md` and `handoff.md` with final verdict PASS.
+- Executed `npx tsc --noEmit` -> 0 errors.
+- Executed `npx tsx tests/run-tests.ts` -> 119/119 tests passed.
+- Executed `npx vite build` -> Production build succeeded.
+- Authored and executed `tests/m7-empirical-challenge.test.ts` to stress test R1-R6 logic, Unicode ASCII mapping, rule evaluation, wrap-around calculations, and AST pattern matching -> 11/11 empirical tests passed.
+- Final Verdict: **PASS**.
 
 ## Artifact Index
-- c:\DEV\DutyFlow\.agents\challenger_1\ORIGINAL_REQUEST.md — Original prompt
-- c:\DEV\DutyFlow\.agents\challenger_1\BRIEFING.md — Persistent state index
-- c:\DEV\DutyFlow\.agents\challenger_1\progress.md — Liveness heartbeat
-- c:\DEV\DutyFlow\.agents\challenger_1\challenge.md — Challenge report
-- c:\DEV\DutyFlow\.agents\challenger_1\handoff.md — 5-Component handoff report
-- c:\DEV\DutyFlow\tests\r1-r4-verification.ts — Automated requirement verification script
+- `c:\DEV\DutyFlow\.agents\challenger_1\ORIGINAL_REQUEST.md` — Original prompt request
+- `c:\DEV\DutyFlow\.agents\challenger_1\BRIEFING.md` — Context index
+- `c:\DEV\DutyFlow\.agents\challenger_1\progress.md` — Liveness heartbeat
+- `c:\DEV\DutyFlow\tests\m7-empirical-challenge.test.ts` — Empirical challenge test suite
+- `c:\DEV\DutyFlow\.agents\challenger_1\handoff.md` — Final verification report
+
+## Attack Surface
+- **Hypotheses tested**:
+  - H1: Weekend and holiday styling differs between calendar view and matrix headers. -> FALSIFIED (Identical styling applied).
+  - H2: Residual shift balance state/modal references remain in SchedulerDashboard. -> FALSIFIED (0 references exist).
+  - H3: PDF export crashes on Thai names/templates or includes unallowed cross-group shifts. -> FALSIFIED (Safe ASCII mapping and strict home/cross-group filtering work).
+  - H4: Day Inspector panel still renders top 3 metric cards or breaks shift hour calculation on overnight wrap-around. -> FALSIFIED (Metric cards removed, hour wrap-around verified).
+  - H5: Matrix shift status badges render inline or overflow card width. -> FALSIFIED (Positioned in block `mt-1` under shift times).
+  - H6: Self-role switching allows non-admin users to elevate to admin in Firestore rules or UI. -> FALSIFIED (Firestore rules & UI restrict elevation to user/scheduler).
+- **Vulnerabilities found**: None.
+- **Untested angles**: All 6 requirements fully covered.
+
+## Loaded Skills
+- None

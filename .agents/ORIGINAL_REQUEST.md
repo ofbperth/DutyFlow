@@ -35,3 +35,57 @@ Remove all hardcoded group-specific overrides (e.g. hardcoded `group-saraburi` o
 - [ ] Shift templates belonging to unrelated groups (e.g., Saraburi templates, 1650 templates, ICU templates) are hidden from users in groups that lack cross-group access.
 - [ ] Scheduled shifts shown in calendar, matrix, and roster views strictly match the user's active group and involved cross-group shifts.
 - [ ] `npm run lint`, `npm test`, and `npm run build` pass with zero errors.
+
+## 2026-07-30T14:29:31Z
+
+Refactor and update the DutyFlow hospital duty scheduling application to enhance calendar highlights, clean up rotation scheduling UI panels, fix PDF export rules, simplify the day inspector, and optimize matrix view shift card layouts.
+
+Working directory: c:\DEV\DutyFlow
+Integrity mode: development
+
+## Requirements
+
+### R1. Calendar Mode Holiday & Weekend Highlight Consistency
+Ensure holidays and weekend days (Saturday and Sunday) are styled and highlighted as identical/consistent background/border indicators in calendar mode view across rotation schedules.
+
+### R2. Remove Shift Balance from Rotation Schedule Top Panel
+Remove the "Shift Balance" button and all underlying UI handlers/modals associated with shift balancing from the top panel on the rotation schedule page.
+
+### R3. Fix & Scope PDF Export for Duty Schedules
+Fix broken PDF export functionality so that generated PDFs cleanly export only home group staff shifts and the user's own cross-group shifts without rendering errors or missing data.
+
+### R4. Simplify Day Inspector Panel Header Stats
+Remove the "Assigned Staff" count, "Total Hours" count, and "Status Ratio" summary cards/metrics from the top section of the Day Inspector panel.
+
+### R5. Compact Shift Cards in Matrix View
+In matrix schedule view, move the "Draft" / "Published" status badges/tags to be positioned underneath the shift time (instead of beside it), narrowing the horizontal width of shift cards.
+
+## Acceptance Criteria
+
+### Calendar View Styling
+- Weekend days (Sat/Sun) and public holidays share identical styling/highlighting rules in calendar view.
+
+### Rotation Schedule Top Panel
+- Shift Balance button is no longer present in the top action panel of the rotation scheduler.
+- No residual unused state or broken UI references related to shift balance remain in the header.
+
+### PDF Export
+- PDF export executes without errors or layout glitches.
+- PDF output strictly includes home group shifts and the current user's own cross-group shifts.
+
+### Day Inspector
+- The Day Inspector modal/panel displays without the three top metric cards (Assigned Staff, Total Hours, Status Ratio).
+- Staff Roster Breakdown and Add Shift actions remain functional.
+
+### Matrix View
+- Draft and Published badges render directly below shift times inside matrix view shift cells.
+- Shift cards maintain a tighter, narrower horizontal width without clipping.
+
+## 2026-07-30T14:33:30Z
+
+### R6. Allow Self-Role Switching Between User and Scheduler
+- Description: Allow every user to change/toggle their own role between "user" and "scheduler" in their settings/navigation UI. Update Firestore rules and client UI components so users can update their own role without permission denied errors or restriction blocks.
+
+Acceptance Criteria for R6:
+- Every user can switch their role between "user" and "scheduler".
+- Firestore rules allow users to update their own role document field.

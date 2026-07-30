@@ -1,34 +1,26 @@
-## 2026-07-29T15:48:03Z
+## 2026-07-30T14:40:34Z
+You are Auditor 1 conducting Forensic Integrity Audit for DutyFlow Milestone 7 (UI/UX Refactoring & Enhancements R1-R6).
+Your working directory is: c:\DEV\DutyFlow\.agents\auditor_1
 
-<USER_REQUEST>
-You are Forensic Auditor 1 for the DutyFlow project.
-Your working directory is c:\DEV\DutyFlow\.agents\auditor_1. Create this directory if it does not exist.
+Read the scope document in c:\DEV\DutyFlow\.agents\orchestrator\SCOPE.md and worker handoff at c:\DEV\DutyFlow\.agents\implementer_1\handoff.md.
 
-Your Task:
-1. Perform an independent forensic integrity audit of the DutyFlow codebase changes in `src/`.
-2. Inspect source code (`src/components/FourWeekCalendarView.tsx`, `src/components/TouchContextMenu.tsx`, `src/components/BatchAssignModal.tsx`, `src/components/DayInspectorPanel.tsx`, `src/components/UserDashboard.tsx`, `src/components/SchedulerDashboard.tsx`, `src/types.ts`) for any integrity violations:
-   - Hardcoded test results or static return strings mimicking expected test outputs.
-   - Dummy/facade implementations that do not execute genuine state logic.
-   - Bypass mechanisms or fake test harnesses.
-3. Confirm that all implementations are 100% genuine and authentic.
-4. Write your audit evidence report to c:\DEV\DutyFlow\.agents\auditor_1\audit.md and handoff report to c:\DEV\DutyFlow\.agents\auditor_1\handoff.md.
-5. Report your clear binary verdict (CLEAN vs INTEGRITY VIOLATION) and notify parent orchestrator when complete.
-</USER_REQUEST>
+Tasks:
+1. Audit all modified files:
+   - `src/components/FourWeekCalendarView.tsx`
+   - `src/components/SchedulerDashboard.tsx`
+   - `src/components/UserDashboard.tsx`
+   - `src/components/PooledShiftsDashboard.tsx`
+   - `src/components/DayInspectorPanel.tsx`
+   - `src/utils/pdfExport.ts`
+   - `firestore.rules`
+   - `src/components/Navbar.tsx`
+   - `src/App.tsx`
+2. Perform forensic checks:
+   - Static analysis: Ensure zero hardcoded test outputs, zero fake/dummy functions, zero mocked test bypasses.
+   - Integrity check: Verify `exportScheduleToPDF`, `isWeekendOrHoliday`, `DayInspectorPanel` header removal, matrix compact card badges, and `firestore.rules` role update constraints are genuinely implemented.
+3. Run verification suite:
+   - `npm run lint` (`npx tsc --noEmit`)
+   - `npm test` (`npx tsx tests/run-tests.ts`)
+   - `npm run build` (`npx vite build`)
 
-## 2026-07-30T06:09:57Z
-
-<USER_REQUEST>
-You are Forensic Auditor 1, working in directory `c:\DEV\DutyFlow\.agents\auditor_1`.
-
-Your task is to perform a Forensic Integrity Audit on the DutyFlow codebase changes for R1, R2, R3, R4:
-
-1. **Static Analysis & Genuine Logic Check**:
-   - Check `src/components/FourWeekCalendarView.tsx`, `src/components/SchedulerDashboard.tsx`, `src/components/AdminDashboard.tsx`, `src/components/BatchAssignModal.tsx`, `src/components/GroupManagerModal.tsx`, etc.
-   - Verify that implementations are genuine React logic and not hardcoded mock facades or dummy data designed to cheat tests.
-   - Verify R1 (drag & drop staff selector modal), R2 (upper panel batch assign button), R3 (Manage Group in Admin menu), R4 (modal overlay `fixed inset-0 z-50 flex items-center justify-center` backdrop blur).
-2. **Build Execution**:
-   - Run `npm run build` and verify exit code 0 and zero errors.
-
-Write your forensic audit evidence and findings into `c:\DEV\DutyFlow\.agents\auditor_1\audit.md` and `handoff.md`. Include a clear final binary verdict: `CLEAN` or `VIOLATION`.
-Send a message back to parent when completed.
-</USER_REQUEST>
+Deliver your audit report in `c:\DEV\DutyFlow\.agents\auditor_1\handoff.md` with an explicit final verdict: **CLEAN** or **INTEGRITY VIOLATION**. Send a message to the orchestrator upon completion.
