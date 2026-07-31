@@ -8,7 +8,9 @@ import {
   signOut
 } from 'firebase/auth';
 import {
-  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection,
   doc,
   getDocs,
@@ -17,6 +19,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   where,
   getDocFromServer
@@ -27,7 +30,16 @@ import { User, Role, ShiftTemplate, Shift, Availability, ShiftSwap, Holiday, Sch
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || '(default)');
+// Keep the roster directory available between page loads.  The multi-tab cache
+// retains Firestore's normal server synchronization semantics while avoiding a
+// cold network read for data that has not changed since the previous visit.
+export const db = initializeFirestore(
+  app,
+  {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  },
+  (firebaseConfig as any).firestoreDatabaseId || '(default)'
+);
 
 // Configure Google Auth Provider
 const provider = new GoogleAuthProvider();
@@ -378,6 +390,15 @@ export const checkDoubleShift = (shifts: Shift[], userId: string, date: string, 
 // Seeding Initial Data if Collections are Empty
 export const seedInitialData = async () => {
   try {
+    // Default data is provisioned once, not rewritten every time an admin
+    // signs in. Rewriting the same 31 documents serially was the dominant
+    // startup cost and could also overwrite an administrator's configuration.
+    const bootstrapRef = doc(db, 'config', 'initial-data-v1');
+    const bootstrapSnap = await getDoc(bootstrapRef);
+    if (bootstrapSnap.exists()) {
+      return;
+    }
+
     console.log('Seeding/updating initial doctor groups...');
     const initialGroups: DoctorGroup[] = [
       { id: 'group-nvm22', name: 'NVM22', color: '#ef4444', weekdayShiftTime: '17:00-07:00', holidayShiftTime: '10:00-07:00' },
@@ -396,10 +417,6 @@ export const seedInitialData = async () => {
       { id: 'group-saraburi', name: 'สระบุรี', color: '#ec4899', weekdayShiftTime: '16:30-08:30', holidayShiftTime: '08:30-08:30' },
       { id: 'group-universal', name: 'Universal / General Shifts', color: '#d946ef' }
     ];
-    for (const g of initialGroups) {
-      await saveDoctorGroup(g);
-    }
-
     console.log('Seeding/updating initial shift templates...');
     const initialTemplates: ShiftTemplate[] = [
       { id: 'temp-group-weekday', name: 'เวรวันธรรมดา', startTime: '17:00', endTime: '07:00', color: '#3b82f6', groupId: 'group-universal' },
@@ -420,8 +437,25 @@ export const seedInitialData = async () => {
       { id: 'temp-uni-night', name: 'เวรคอกดึก', startTime: '00:00', endTime: '06:00', color: '#06b6d4', isPooled: true, groupId: 'group-pooled' },
       { id: 'temp-uni-nightdown', name: 'เวรคอกดึกดาวน์', startTime: '00:00', endTime: '08:00', color: '#3b82f6', isPooled: true, groupId: 'group-pooled' }
     ];
-    for (const t of initialTemplates) {
-      await saveShiftTemplate(t);
+    // Preserve any existing administrator configuration. For an existing
+    // installation being upgraded to this marker, only missing defaults are
+    // added; a new installation receives the complete set in one commit.
+    const [existingGroups, existingTemplates] = await Promise.all([
+      getDoctorGroups(),
+      fetchShiftTemplates()
+    ]);
+    const existingGroupIds = new Set(existingGroups.map(group => group.id));
+    const existingTemplateIds = new Set(existingTemplates.map(template => template.id));
+
+    // These independent defaults are committed atomically in one Firestore
+    // round trip instead of one request per document.
+    const missingGroups = initialGroups.filter(group => !existingGroupIds.has(group.id));
+    const missingTemplates = initialTemplates.filter(template => !existingTemplateIds.has(template.id));
+    if (missingGroups.length > 0 || missingTemplates.length > 0) {
+      const defaultsBatch = writeBatch(db);
+      missingGroups.forEach(group => defaultsBatch.set(doc(db, 'doctorGroups', group.id), group));
+      missingTemplates.forEach(template => defaultsBatch.set(doc(db, 'shiftTemplates', template.id), template));
+      await defaultsBatch.commit();
     }
 
     const hols = await fetchHolidays();
@@ -522,6 +556,10 @@ export const seedInitialData = async () => {
         }
       }
     }
+
+    // Write the marker only after all dependent seed work completed so a
+    // transient failure remains retryable on the next admin session.
+    await setDoc(bootstrapRef, { version: 1 });
 
   } catch (err) {
     console.error('Error seeding initial data:', err);

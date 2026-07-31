@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import {
   initAuth,
   googleSignIn,
@@ -14,7 +14,6 @@ import {
   fetchSchedulePeriod,
   saveSchedulePeriod,
   seedInitialData,
-  testFirestoreConnection,
   getDoctorGroups,
   getRotationAssignments,
   updateUserRole,
@@ -24,13 +23,16 @@ import { User, ShiftTemplate, Shift, Availability, ShiftSwap, Holiday, Role, Sch
 
 import Navbar from './components/Navbar';
 import LoginView from './components/LoginView';
-import AdminDashboard from './components/AdminDashboard';
-import SchedulerDashboard from './components/SchedulerDashboard';
-import UserDashboard from './components/UserDashboard';
-import PooledShiftsDashboard from './components/PooledShiftsDashboard';
 import PrivacyPolicyView from './components/PrivacyPolicyView';
 import TermsOfServiceView from './components/TermsOfServiceView';
 import { RefreshCw, AlertCircle, Sparkles, Layers } from 'lucide-react';
+
+// Workspaces are mutually exclusive. Loading them on demand keeps the first
+// authenticated bundle focused on shell, auth, and the selected workspace.
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const SchedulerDashboard = lazy(() => import('./components/SchedulerDashboard'));
+const UserDashboard = lazy(() => import('./components/UserDashboard'));
+const PooledShiftsDashboard = lazy(() => import('./components/PooledShiftsDashboard'));
 
 const getPublicPageFromUrl = (): 'privacy' | 'terms' | null => {
   const path = window.location.pathname.toLowerCase();
@@ -108,18 +110,6 @@ export default function App() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
-
-  // Initialize and Seed data
-  useEffect(() => {
-    const bootstrap = async () => {
-      try {
-        await testFirestoreConnection();
-      } catch (err: any) {
-        console.error('Initial bootstrapping failed:', err);
-      }
-    };
-    bootstrap();
-  }, []);
 
   // Sync state observer for user auth
   useEffect(() => {
@@ -231,8 +221,9 @@ export default function App() {
     try {
       const result = await googleSignIn();
       if (result) {
-        // Reload directories
-        await loadAllData();
+        // onAuthStateChanged is the single owner of profile and directory
+        // loading. Calling loadAllData here would race it and duplicate every
+        // collection read on each successful sign-in.
       }
     } catch (err: any) {
       console.error('Login error details:', err);
@@ -419,7 +410,9 @@ export default function App() {
 
         {/* Render selected workspace */}
         <div id="active-workspace-panel" className="animate-fade-in">
-          {renderDashboard()}
+          <Suspense fallback={null}>
+            {renderDashboard()}
+          </Suspense>
         </div>
       </main>
     </div>
