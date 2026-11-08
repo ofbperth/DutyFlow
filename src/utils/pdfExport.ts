@@ -78,6 +78,38 @@ export const isShiftInExportScope = (
   return permittedCrossGroups.includes(effectiveTargetGroupId);
 };
 
+// Use browser font shaping for Thai and other scripts Helvetica cannot render.
+const drawCalendarText = (doc: jsPDF, text: string, x: number, y: number, maxWidth: number) => {
+  const canvas = /[^\x20-\x7E]/.test(text) && typeof document !== 'undefined'
+    ? document.createElement('canvas')
+    : null;
+  const context = canvas?.getContext('2d');
+  if (canvas && context) {
+    const pixelsPerMm = 12;
+    const fontSize = doc.getFontSize() * 25.4 / 72 * pixelsPerMm;
+    const font = `${doc.getFont().fontStyle === 'bold' ? 'bold ' : ''}${fontSize}px Tahoma, "Noto Sans Thai", sans-serif`;
+    const baseline = Math.ceil(fontSize * 1.3);
+    context.font = font;
+    canvas.width = Math.min(Math.ceil(context.measureText(text).width) + 2, Math.floor(maxWidth * pixelsPerMm));
+    canvas.height = Math.ceil(fontSize * 1.8);
+    context.font = font;
+    context.fillStyle = doc.getTextColor();
+    context.fillText(text, 1, baseline, canvas.width - 2);
+    doc.addImage(canvas, 'PNG', x, y - baseline / pixelsPerMm, canvas.width / pixelsPerMm, canvas.height / pixelsPerMm, undefined, 'FAST');
+    return;
+  }
+
+  const printable = text.replace(/[^\x20-\x7E]/g, '?');
+  const width = doc.getTextWidth(printable);
+  if (width > maxWidth) {
+    doc.saveGraphicsState();
+    doc.text(printable, x, y, { horizontalScale: maxWidth / width });
+    doc.restoreGraphicsState();
+    return;
+  }
+  doc.text(printable, x, y);
+};
+
 /**
  * Exports the selected group for an admin, or the viewer's scoped schedule.
  */
@@ -139,131 +171,130 @@ export const exportScheduleToPDF = ({
   if (groupShifts && !groupShifts.some(shift => exportUsersMap.has(shift.userId))) {
     throw new Error('No staff records found for this group’s shifts.');
   }
-  const exportUsers = Array.from(exportUsersMap.values());
+  const entriesByDate = new Map<string, { name: string; code: string }[]>();
+  for (const shift of groupShifts ?? periodShifts) {
+    const staff = exportUsersMap.get(shift.userId);
+    if (!staff) continue;
+    const template = templates.find(item => item.id === shift.templateId);
+    if (!groupShifts && !isShiftInExportScope(shift, template, currentUser.id, scopeGroupId)) continue;
 
-  // 5. Initialize PDF document (A4 Landscape)
-  const JsPDFDoc = (jsPDF as any).jsPDF || jsPDF;
-  const doc = new JsPDFDoc('landscape');
-  const pageMargin = 14;
-  const tableWidth = 269;
-  const staffColWidth = 38;
-  const numDays = datesArray.length || 28;
-  const dayColWidth = (tableWidth - staffColWidth) / numDays;
-  const dateColumns = datesArray.map((date, index) => {
-    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-    return {
-      date,
-      x: pageMargin + staffColWidth + index * dayColWidth,
-      isWeekend: weekday === 0 || weekday === 6
+    const staffGroupId = getRotationGroupId(staff.id);
+    const isCrossGroup = selectedGroup
+      ? staffGroupId && staffGroupId !== selectedGroup.id && selectedGroup.id !== 'group-universal'
+      : shift.targetGroupId && shift.targetGroupId !== scopeGroupId;
+    const entry = {
+      name: staff.name?.trim().replace(/\s+/g, ' ') || getSafeUserName(staff),
+      code: (getShiftShortCode(template) || 'SFT') + (isCrossGroup ? '*' : '')
     };
-  });
-  const weekendColumns = dateColumns.filter(column => column.isWeekend);
-  const drawWeekendCells = (y: number, height: number) => {
-    weekendColumns.forEach(({ x }) => doc.rect(x, y, dayColWidth, height, 'F'));
-  };
-
-  // Title Header
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text(`DutyFlow: ${groupName} Duty Schedule`, pageMargin, 16);
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Rotation: ${periodTitle} (${periodRange})`, pageMargin, 23);
-  doc.text(`Generated: ${new Date().toLocaleDateString()} | User: ${getSafeUserName(currentUser)}`, pageMargin, 28);
-
-  // Helper to draw table header
-  const drawTableHeader = (startY: number): number => {
-    doc.setFillColor(30, 41, 59); // Dark slate header
-    doc.rect(pageMargin, startY, tableWidth, 9, 'F');
-    doc.setFillColor(146, 64, 14); // Amber weekend headers
-    drawWeekendCells(startY, 9);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(255, 255, 255);
-    doc.text('Staff Member', pageMargin + 2, startY + 6);
-
-    dateColumns.forEach(({ date, x }) => {
-      const dayNum = String(Number(date.slice(-2)));
-      doc.text(dayNum, x + (dayColWidth / 4), startY + 6);
-    });
-
-    doc.setTextColor(50, 50, 50);
-    return startY + 9;
-  };
-
-  let currentY = drawTableHeader(33);
-
-  // 6. Draw Table Rows
-  exportUsers.forEach((u, uIdx) => {
-    if (currentY > 180) {
-      doc.addPage();
-      currentY = drawTableHeader(15);
-    }
-
-    const isMe = u.id === currentUser.id;
-
-    // Background highlight
-    if (isMe) {
-      doc.setFillColor(239, 246, 255); // Light blue tint for current user
-      doc.rect(pageMargin, currentY, tableWidth, 7, 'F');
-    } else if (uIdx % 2 === 1) {
-      doc.setFillColor(248, 250, 252); // Alternating light gray
-      doc.rect(pageMargin, currentY, tableWidth, 7, 'F');
-    }
-    doc.setFillColor(254, 243, 199); // Light amber weekend cells
-    drawWeekendCells(currentY, 7);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(isMe ? 37 : 50, isMe ? 99 : 50, isMe ? 235 : 50);
-    const displayName = `${getSafeUserName(u)}${isMe ? ' (Me)' : ''}`;
-    doc.text(displayName.substring(0, 18), pageMargin + 2, currentY + 5);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(50, 50, 50);
-
-    // Get shifts for user u
-    const userShifts = (groupShifts ?? periodShifts).filter(s => {
-      if (s.userId !== u.id) return false;
-      if (groupShifts) return true;
-      const template = templates.find(t => t.id === s.templateId);
-      return isShiftInExportScope(s, template, currentUser.id, scopeGroupId);
-    });
-    const staffGroupId = getRotationGroupId(u.id);
-
-    dateColumns.forEach(({ date, x }) => {
-      const shift = userShifts.find(s => s.date === date);
-      if (shift) {
-        const template = templates.find(t => t.id === shift.templateId);
-        let code = getShiftShortCode(template) || 'SFT';
-        const isCrossGroupShift = selectedGroup
-          ? !!staffGroupId && staffGroupId !== selectedGroup.id && selectedGroup.id !== 'group-universal'
-          : shift.targetGroupId && shift.targetGroupId !== scopeGroupId;
-        if (isCrossGroupShift) {
-          code += '*'; // Mark cross-group shift
-        }
-        doc.text(code, x + 1, currentY + 5);
-      }
-    });
-
-    currentY += 7;
-  });
-
-  // 7. Legend Footer
-  currentY += 4;
-  if (currentY > 195) {
-    doc.addPage();
-    currentY = 15;
+    const dayEntries = entriesByDate.get(shift.date) ?? [];
+    dayEntries.push(entry);
+    entriesByDate.set(shift.date, dayEntries);
   }
 
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Legend: WD = Weekday Shift | HD = Holiday Shift | M = Morning | A = Afternoon | N = Night | * = Cross-Group Shift | Shaded columns = Sat/Sun', pageMargin, currentY);
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayLabels = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const dayMs = 86_400_000;
+  const weeks = new Map<number, (string | undefined)[]>();
+  for (const date of datesArray) {
+    const utcDate = new Date(`${date}T00:00:00Z`);
+    const weekday = utcDate.getUTCDay();
+    const sunday = utcDate.getTime() - weekday * dayMs;
+    const week = weeks.get(sunday) ?? Array<string | undefined>(7).fill(undefined);
+    week[weekday] = date;
+    weeks.set(sunday, week);
+  }
 
-  // 8. Save PDF
+  const JsPDFDoc = (jsPDF as any).jsPDF || jsPDF;
+  const doc: jsPDF = new JsPDFDoc('landscape');
+  const pageMargin = 14;
+  const calendarWidth = doc.internal.pageSize.getWidth() - pageMargin * 2;
+  const cellWidth = calendarWidth / 7;
+  const calendarTop = 32;
+  const headerHeight = 8;
+  const calendarBottom = 188;
+  const dateHeight = 8;
+  const entryHeight = 4.6;
+  const cellPadding = 2.5;
+  const minWeekHeight = 34;
+  const weekCapacity = Math.floor((calendarBottom - calendarTop - headerHeight - dateHeight - cellPadding) / entryHeight);
+
+  const drawPageHeader = () => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(30, 41, 59);
+    drawCalendarText(doc, `DutyFlow: ${groupName} Duty Schedule`, pageMargin, 16, calendarWidth);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    drawCalendarText(doc, `Rotation: ${periodTitle} (${periodRange})`, pageMargin, 23, calendarWidth);
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')} | User: ${getSafeUserName(currentUser)}`, pageMargin, 28);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    weekdays.forEach((weekday, index) => {
+      const x = pageMargin + index * cellWidth;
+      doc.setFillColor(index === 0 || index === 6 ? '#92400e' : '#1e293b');
+      doc.rect(x, calendarTop, cellWidth, headerHeight, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text(weekday, x + cellWidth / 2, calendarTop + 5.5, { align: 'center' });
+    });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text('WD = Weekday | HD = Holiday | M = Morning | A = Afternoon | N = Night | * = Cross-group | Shaded = Sat/Sun', pageMargin, 195);
+    doc.text(String(doc.getNumberOfPages()), pageMargin + calendarWidth, 195, { align: 'right' });
+    return calendarTop + headerHeight;
+  };
+
+  let y = drawPageHeader();
+  const sortedWeeks = [...weeks.entries()].sort(([left], [right]) => left - right);
+  for (const [, week] of sortedWeeks) {
+    const entries = week.map(date => date ? entriesByDate.get(date) ?? [] : []);
+    const entryCount = Math.max(...entries.map(dayEntries => dayEntries.length));
+
+    // Keep normal weeks together. Repeat the dates if a dense week spans pages.
+    for (let offset = 0; offset < Math.max(1, entryCount); offset += weekCapacity) {
+      const rowEntries = Math.min(weekCapacity, entryCount - offset);
+      const height = Math.max(minWeekHeight, dateHeight + rowEntries * entryHeight + cellPadding);
+      if (y + height > calendarBottom) {
+        doc.addPage();
+        y = drawPageHeader();
+      }
+
+      week.forEach((date, column) => {
+        const x = pageMargin + column * cellWidth;
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.2);
+        doc.setFillColor(!date ? '#f1f5f9' : column === 0 || column === 6 ? '#fef3c7' : '#ffffff');
+        doc.rect(x, y, cellWidth, height, 'FD');
+        if (!date) return;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(30, 41, 59);
+        const dateLabel = dayLabels.format(new Date(`${date}T00:00:00Z`));
+        doc.text(offset ? `${dateLabel} (cont.)` : dateLabel, x + cellPadding, y + 5.6);
+
+        entries[column].slice(offset, offset + weekCapacity).forEach(({ name, code }, index) => {
+          const baseline = y + dateHeight + (index + 1) * entryHeight - 1;
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 64, 175);
+          const codeWidth = doc.getTextWidth(code);
+          doc.text(code, x + cellWidth - cellPadding, baseline, { align: 'right' });
+
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(30, 41, 59);
+          drawCalendarText(doc, name, x + cellPadding, baseline, cellWidth - 3 * cellPadding - codeWidth);
+        });
+      });
+      y += height;
+    }
+  }
+
   const cleanTitle = periodTitle.replace(/\s+/g, '_');
   const cleanGroup = groupName.replace(/\s+/g, '_');
   if (save) {

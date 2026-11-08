@@ -71,6 +71,7 @@ describe('Challenger 2 Empirical Verification: Milestone 7 Edge Cases', () => {
       const shifts: Shift[] = [
         publishedShift,
         { ...publishedShift, id: 'cross', userId: 'u4-other', targetGroupId: 'group-icu' },
+        { ...publishedShift, id: 'same-day', templateId: generalTemplate.id },
         { ...publishedShift, id: 'general', date: '2026-08-02', templateId: generalTemplate.id, targetGroupId: 'group-universal' },
         { ...publishedShift, id: 'other', date: '2026-08-03', templateId: erTemplate.id, targetGroupId: 'group-er' },
         { ...publishedShift, id: 'outside', date: '2026-08-29', targetGroupId: 'group-icu' }
@@ -94,9 +95,14 @@ describe('Challenger 2 Empirical Verification: Milestone 7 Edge Cases', () => {
         exportScheduleToPDF(params);
         const content = pdf?.output() ?? '';
         expect(content.includes('(DutyFlow: ICU Group Duty Schedule)')).toBe(true);
+        expect(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => content.indexOf(`(${day})`))
+          .every((position, index, positions) => position >= 0 && (index === 0 || position > positions[index - 1])))
+          .toBe(true);
+        expect(content.includes('(1 Aug)')).toBe(true);
+        expect(content.includes('(2 Aug)')).toBe(true);
         expect(content.includes('(Dr. Alice Smith)')).toBe(true);
         expect(content.includes('(Dr. Other User)')).toBe(true);
-        expect(content.includes('(WD)')).toBe(true);
+        expect(content.match(/\(WD\)/g)?.length).toBe(2);
         expect(content.match(/\(M\)/g)?.length).toBe(1);
         expect(content.match(/\(M\*\)/g)?.length).toBe(1);
         expect(content.includes('(Test Admin)')).toBe(false);
@@ -144,8 +150,7 @@ describe('Challenger 2 Empirical Verification: Milestone 7 Edge Cases', () => {
       expect(true).toBe(true);
     });
 
-    it('PDF-EDGE-03: exportScheduleToPDF handles multi-page pagination (50+ users) cleanly', () => {
-      // Generate 60 mock users to trigger multi-page export (each user takes ~7pt height, Y limit is 180)
+    it('PDF-EDGE-03: a crowded day carries every shift into the next page', () => {
       const largeUserSet: User[] = Array.from({ length: 60 }, (_, i) => ({
         id: `u-large-${i}`,
         name: `Doctor Number ${i + 1}`,
@@ -162,18 +167,31 @@ describe('Challenger 2 Empirical Verification: Milestone 7 Edge Cases', () => {
         periodId: 'period-1'
       }));
 
-      exportScheduleToPDF({
-        currentUser: largeUserSet[0],
-        users: largeUserSet,
-        templates: mockTemplates,
-        shifts: [],
-        groups: mockGroups,
-        rotationAssignments: largeAssignments,
-        schedulePeriod: mockPeriod,
-        datesArray: mockDatesArray,
-        save: false
-      });
-      expect(true).toBe(true);
+      const shifts: Shift[] = largeUserSet.map(user => ({
+        id: user.id, userId: user.id, date: mockPeriod.startDate, templateId: mockTemplates[0].id,
+        targetGroupId: 'group-icu', status: 'published', assignedBy: largeUserSet[0].id
+      }));
+      let pdf: jsPDF | undefined;
+      jsPDF.API.events.push(['initialized', function (this: jsPDF) { pdf = this; }]);
+      try {
+        exportScheduleToPDF({
+          currentUser: largeUserSet[0],
+          users: largeUserSet,
+          templates: mockTemplates,
+          shifts,
+          groups: mockGroups,
+          rotationAssignments: largeAssignments,
+          schedulePeriod: mockPeriod,
+          datesArray: [mockPeriod.startDate],
+          save: false
+        });
+        const content = pdf?.output() ?? '';
+        expect(pdf?.getNumberOfPages()).toBe(3);
+        expect(content.match(/\(M\)/g)?.length).toBe(shifts.length);
+        expect(content.includes('(Doctor Number 60)')).toBe(true);
+      } finally {
+        jsPDF.API.events.pop();
+      }
     });
 
     it('PDF-EDGE-04: getSafeUserName handles edge cases (empty name, non-ASCII name, email fallback)', () => {
