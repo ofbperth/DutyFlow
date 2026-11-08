@@ -149,6 +149,18 @@ export const exportScheduleToPDF = ({
   const staffColWidth = 38;
   const numDays = datesArray.length || 28;
   const dayColWidth = (tableWidth - staffColWidth) / numDays;
+  const dateColumns = datesArray.map((date, index) => {
+    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+    return {
+      date,
+      x: pageMargin + staffColWidth + index * dayColWidth,
+      isWeekend: weekday === 0 || weekday === 6
+    };
+  });
+  const weekendColumns = dateColumns.filter(column => column.isWeekend);
+  const drawWeekendCells = (y: number, height: number) => {
+    weekendColumns.forEach(({ x }) => doc.rect(x, y, dayColWidth, height, 'F'));
+  };
 
   // Title Header
   doc.setFont('helvetica', 'bold');
@@ -164,17 +176,17 @@ export const exportScheduleToPDF = ({
   const drawTableHeader = (startY: number): number => {
     doc.setFillColor(30, 41, 59); // Dark slate header
     doc.rect(pageMargin, startY, tableWidth, 9, 'F');
+    doc.setFillColor(146, 64, 14); // Amber weekend headers
+    drawWeekendCells(startY, 9);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('Staff Member', pageMargin + 2, startY + 6);
 
-    datesArray.forEach((dateStr, index) => {
-      const parts = dateStr.split('-').map(Number);
-      const dayNum = String(parts[2]);
-      const xPos = pageMargin + staffColWidth + (index * dayColWidth);
-      doc.text(dayNum, xPos + (dayColWidth / 4), startY + 6);
+    dateColumns.forEach(({ date, x }) => {
+      const dayNum = String(Number(date.slice(-2)));
+      doc.text(dayNum, x + (dayColWidth / 4), startY + 6);
     });
 
     doc.setTextColor(50, 50, 50);
@@ -200,6 +212,8 @@ export const exportScheduleToPDF = ({
       doc.setFillColor(248, 250, 252); // Alternating light gray
       doc.rect(pageMargin, currentY, tableWidth, 7, 'F');
     }
+    doc.setFillColor(254, 243, 199); // Light amber weekend cells
+    drawWeekendCells(currentY, 7);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -219,8 +233,8 @@ export const exportScheduleToPDF = ({
     });
     const staffGroupId = getRotationGroupId(u.id);
 
-    datesArray.forEach((dateStr, dIdx) => {
-      const shift = userShifts.find(s => s.date === dateStr);
+    dateColumns.forEach(({ date, x }) => {
+      const shift = userShifts.find(s => s.date === date);
       if (shift) {
         const template = templates.find(t => t.id === shift.templateId);
         let code = getShiftShortCode(template) || 'SFT';
@@ -230,8 +244,7 @@ export const exportScheduleToPDF = ({
         if (isCrossGroupShift) {
           code += '*'; // Mark cross-group shift
         }
-        const xPos = pageMargin + staffColWidth + (dIdx * dayColWidth);
-        doc.text(code, xPos + 1, currentY + 5);
+        doc.text(code, x + 1, currentY + 5);
       }
     });
 
@@ -248,7 +261,7 @@ export const exportScheduleToPDF = ({
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text('Legend: WD = Weekday Shift | HD = Holiday Shift | M = Morning | A = Afternoon | N = Night | * = Cross-Group Shift', pageMargin, currentY);
+  doc.text('Legend: WD = Weekday Shift | HD = Holiday Shift | M = Morning | A = Afternoon | N = Night | * = Cross-Group Shift | Shaded columns = Sat/Sun', pageMargin, currentY);
 
   // 8. Save PDF
   const cleanTitle = periodTitle.replace(/\s+/g, '_');
