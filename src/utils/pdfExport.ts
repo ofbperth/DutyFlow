@@ -10,6 +10,7 @@ export interface ExportPDFParams {
   rotationAssignments: GroupRotationAssignment[];
   schedulePeriod: SchedulePeriod | null;
   datesArray: string[];
+  exportGroupId?: string;
   save?: boolean;
 }
 
@@ -78,7 +79,7 @@ export const isShiftInExportScope = (
 };
 
 /**
- * Exports duty schedule to PDF with strict home group & own cross-group scoping.
+ * Exports the selected group for an admin, or the viewer's scoped schedule.
  */
 export const exportScheduleToPDF = ({
   currentUser,
@@ -89,51 +90,54 @@ export const exportScheduleToPDF = ({
   rotationAssignments,
   schedulePeriod,
   datesArray,
+  exportGroupId,
   save = true
 }: ExportPDFParams): void => {
   const periodId = schedulePeriod?.id || 'current';
   const periodTitle = schedulePeriod?.title || 'Schedule Period';
   const periodRange = schedulePeriod ? `${schedulePeriod.startDate} to ${schedulePeriod.endDate}` : '';
 
-  // 1. Identify active home group ID for currentUser
-  const currentUserAssignment = rotationAssignments.find(
-    a => a.userId === currentUser.id && (a.periodId === periodId || !a.periodId)
-  );
-  const myHomeGroupId = currentUserAssignment?.groupId || '';
-  const myGroupObj = groups.find(g => g.id === myHomeGroupId);
-  const myGroupName = myGroupObj ? myGroupObj.name : 'Duty Schedule';
+  const selectedGroup = currentUser.role === 'admin'
+    ? groups.find(group => group.id === exportGroupId)
+    : undefined;
+  if (exportGroupId && !selectedGroup) {
+    throw new Error('Select a valid group to export.');
+  }
 
-  // 2. Identify Home Group Staff
-  const homeGroupUsers = users.filter(u => {
-    const assignment = rotationAssignments.find(
-      a => a.userId === u.id && (a.periodId === periodId || !a.periodId)
-    );
-    return assignment && assignment.groupId === myHomeGroupId;
+  const getRotationGroupId = (userId: string) => rotationAssignments.find(
+    a => a.userId === userId && (a.periodId === periodId || !a.periodId)
+  )?.groupId;
+  const scopeGroupId = selectedGroup?.id ?? getRotationGroupId(currentUser.id) ?? '';
+  const groupName = groups.find(group => group.id === scopeGroupId)?.name ?? 'Duty Schedule';
+
+  const getTargetGroupId = (shift: Shift) =>
+    shift.targetGroupId ?? templates.find(template => template.id === shift.templateId)?.groupId;
+  const periodShifts = shifts.filter(shift => datesArray.includes(shift.date));
+  const groupShifts = selectedGroup ? periodShifts.filter(shift => {
+    const targetGroupId = getTargetGroupId(shift);
+    return targetGroupId === selectedGroup.id ||
+      (targetGroupId === 'group-universal' && getRotationGroupId(shift.userId) === selectedGroup.id);
+  }) : null;
+  if (groupShifts?.length === 0) {
+    throw new Error('No shifts found for this group in the active rotation.');
+  }
+
+  const homeGroupUsers = users.filter(user => getRotationGroupId(user.id) === scopeGroupId);
+  const allowedHomeGroupsForTarget = CROSS_GROUP_RULES[scopeGroupId] || [];
+  const crossGroupStaff = users.filter(user => {
+    if (groupShifts) return groupShifts.some(shift => shift.userId === user.id);
+    const homeGroupId = getRotationGroupId(user.id);
+    return !!homeGroupId && homeGroupId !== scopeGroupId &&
+      allowedHomeGroupsForTarget.includes(homeGroupId) &&
+      periodShifts.some(shift => shift.userId === user.id && getTargetGroupId(shift) === scopeGroupId);
   });
 
-  // 3. Identify Cross-Group Staff working in myHomeGroupId
-  const allowedHomeGroupsForTarget = CROSS_GROUP_RULES[myHomeGroupId] || [];
-  const crossGroupStaffInMyGroup = users.filter(u => {
-    const assignment = rotationAssignments.find(
-      a => a.userId === u.id && (a.periodId === periodId || !a.periodId)
-    );
-    const homeGroupId = assignment?.groupId;
-    if (!homeGroupId || homeGroupId === myHomeGroupId) return false;
-    if (!allowedHomeGroupsForTarget.includes(homeGroupId)) return false;
-
-    return shifts.some(s => {
-      if (s.userId !== u.id || !datesArray.includes(s.date)) return false;
-      const targetId = s.targetGroupId || templates.find(t => t.id === s.templateId)?.groupId;
-      return targetId === myHomeGroupId;
-    });
-  });
-
-  // 4. Combine into unique Export Users set
-  const exportUsersMap = new Map<string, User>();
-  homeGroupUsers.forEach(u => exportUsersMap.set(u.id, u));
-  crossGroupStaffInMyGroup.forEach(u => exportUsersMap.set(u.id, u));
-  if (!exportUsersMap.has(currentUser.id)) {
+  const exportUsersMap = new Map([...homeGroupUsers, ...crossGroupStaff].map(user => [user.id, user]));
+  if (!selectedGroup && !exportUsersMap.has(currentUser.id)) {
     exportUsersMap.set(currentUser.id, currentUser);
+  }
+  if (groupShifts && !groupShifts.some(shift => exportUsersMap.has(shift.userId))) {
+    throw new Error('No staff records found for this group’s shifts.');
   }
   const exportUsers = Array.from(exportUsersMap.values());
 
@@ -149,7 +153,7 @@ export const exportScheduleToPDF = ({
   // Title Header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(`DutyFlow: ${myGroupName} Duty Schedule`, pageMargin, 16);
+  doc.text(`DutyFlow: ${groupName} Duty Schedule`, pageMargin, 16);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -207,18 +211,23 @@ export const exportScheduleToPDF = ({
     doc.setTextColor(50, 50, 50);
 
     // Get shifts for user u
-    const userShifts = shifts.filter(s => {
-      if (s.userId !== u.id || !datesArray.includes(s.date)) return false;
+    const userShifts = (groupShifts ?? periodShifts).filter(s => {
+      if (s.userId !== u.id) return false;
+      if (groupShifts) return true;
       const template = templates.find(t => t.id === s.templateId);
-      return isShiftInExportScope(s, template, currentUser.id, myHomeGroupId);
+      return isShiftInExportScope(s, template, currentUser.id, scopeGroupId);
     });
+    const staffGroupId = getRotationGroupId(u.id);
 
     datesArray.forEach((dateStr, dIdx) => {
       const shift = userShifts.find(s => s.date === dateStr);
       if (shift) {
         const template = templates.find(t => t.id === shift.templateId);
-        let code = getShiftShortCode(template);
-        if (shift.targetGroupId && shift.targetGroupId !== myHomeGroupId) {
+        let code = getShiftShortCode(template) || 'SFT';
+        const isCrossGroupShift = selectedGroup
+          ? !!staffGroupId && staffGroupId !== selectedGroup.id && selectedGroup.id !== 'group-universal'
+          : shift.targetGroupId && shift.targetGroupId !== scopeGroupId;
+        if (isCrossGroupShift) {
           code += '*'; // Mark cross-group shift
         }
         const xPos = pageMargin + staffColWidth + (dIdx * dayColWidth);
@@ -243,7 +252,7 @@ export const exportScheduleToPDF = ({
 
   // 8. Save PDF
   const cleanTitle = periodTitle.replace(/\s+/g, '_');
-  const cleanGroup = myGroupName.replace(/\s+/g, '_');
+  const cleanGroup = groupName.replace(/\s+/g, '_');
   if (save) {
     doc.save(`DutyFlow_Schedule_${cleanGroup}_${cleanTitle}.pdf`);
   }

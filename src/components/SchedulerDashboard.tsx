@@ -72,6 +72,9 @@ export default function SchedulerDashboard({
   // Loading states for actions & buttons
   const [isPublishing, setIsPublishing] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [exportGroupId, setExportGroupId] = useState('');
+  const isAdmin = currentUser.role === 'admin';
+  const selectedExportGroup = groups.find(group => group.id === exportGroupId);
   const [isAssigningShiftKey, setIsAssigningShiftKey] = useState<string | null>(null); // format: `${userId}_${dateStr}`
   const [isRemovingShiftId, setIsRemovingShiftId] = useState<string | null>(null);
 
@@ -430,6 +433,7 @@ export default function SchedulerDashboard({
 
   // Export to PDF
   const handleExportPDF = () => {
+    if (isAdmin && !selectedExportGroup) return;
     setIsExportingPDF(true);
     try {
       exportScheduleToPDF({
@@ -440,7 +444,8 @@ export default function SchedulerDashboard({
         groups,
         rotationAssignments,
         schedulePeriod: activePeriod,
-        datesArray
+        datesArray,
+        exportGroupId: isAdmin ? selectedExportGroup?.id : undefined
       });
       triggerStatus('PDF exported successfully!');
     } catch (err: any) {
@@ -798,8 +803,19 @@ export default function SchedulerDashboard({
             <span>⚡ Batch Assign</span>
           </button>
 
+          {isAdmin && (
+            <select
+              aria-label="PDF export group"
+              value={selectedExportGroup?.id ?? ''}
+              onChange={event => setExportGroupId(event.target.value)}
+              className="max-w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+            >
+              <option value="">Select group for PDF</option>
+              {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          )}
           <button
-            disabled={isExportingPDF}
+            disabled={isExportingPDF || (isAdmin && !selectedExportGroup)}
             onClick={handleExportPDF}
             className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white border border-white/10 px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
             id="export-pdf-btn"

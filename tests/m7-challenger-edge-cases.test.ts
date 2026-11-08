@@ -1,4 +1,5 @@
 import { runner, describe, it, expect } from './test-framework.ts';
+import { jsPDF } from 'jspdf';
 import { exportScheduleToPDF, getShiftShortCode, getSafeUserName } from '../src/utils/pdfExport.ts';
 import { User, Shift, ShiftTemplate, DoctorGroup, GroupRotationAssignment, SchedulePeriod } from '../src/types.ts';
 
@@ -56,6 +57,53 @@ describe('Challenger 2 Empirical Verification: Milestone 7 Edge Cases', () => {
       startDate: '2026-08-01',
       endDate: '2026-08-28'
     };
+
+    it('exports the selected rotation group for an admin without a home group', () => {
+      const admin: User = { ...mockCurrentUser, id: 'admin', name: 'Test Admin', role: 'admin' };
+      const [icuTemplate, erTemplate] = mockTemplates;
+      const generalTemplate: ShiftTemplate = {
+        ...icuTemplate, id: 'temp-group-weekday', groupId: 'group-universal'
+      };
+      const publishedShift: Shift = {
+        id: 'icu', date: mockPeriod.startDate, templateId: icuTemplate.id,
+        userId: mockCurrentUser.id, status: 'published', assignedBy: admin.id
+      };
+      const shifts: Shift[] = [
+        publishedShift,
+        { ...publishedShift, id: 'cross', userId: 'u4-other', targetGroupId: 'group-icu' },
+        { ...publishedShift, id: 'general', date: '2026-08-02', templateId: generalTemplate.id, targetGroupId: 'group-universal' },
+        { ...publishedShift, id: 'other', date: '2026-08-03', templateId: erTemplate.id, targetGroupId: 'group-er' },
+        { ...publishedShift, id: 'outside', date: '2026-08-29', targetGroupId: 'group-icu' }
+      ];
+      let pdf: jsPDF | undefined;
+      const captureDocument = ['initialized', function (this: jsPDF) { pdf = this; }];
+      jsPDF.API.events.push(captureDocument);
+      try {
+        const params = {
+          currentUser: admin,
+          users: [...mockAllUsers, admin],
+          templates: [...mockTemplates, generalTemplate],
+          shifts,
+          groups: mockGroups,
+          rotationAssignments: mockRotationAssignments,
+          schedulePeriod: mockPeriod,
+          datesArray: mockDatesArray,
+          exportGroupId: 'group-icu',
+          save: false
+        };
+        exportScheduleToPDF(params);
+        const content = pdf?.output() ?? '';
+        expect(content.includes('(DutyFlow: ICU Group Duty Schedule)')).toBe(true);
+        expect(content.includes('(Dr. Alice Smith)')).toBe(true);
+        expect(content.includes('(Dr. Other User)')).toBe(true);
+        expect(content.includes('(WD)')).toBe(true);
+        expect(content.match(/\(M\)/g)?.length).toBe(1);
+        expect(content.match(/\(M\*\)/g)?.length).toBe(1);
+        expect(content.includes('(Test Admin)')).toBe(false);
+      } finally {
+        jsPDF.API.events.pop();
+      }
+    });
 
     it('PDF-EDGE-01: exportScheduleToPDF executes without error when shifts array is completely empty', () => {
       exportScheduleToPDF({
