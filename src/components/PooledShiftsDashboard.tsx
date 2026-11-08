@@ -1,3 +1,4 @@
+import { useMatrixWindow } from './MatrixControls';
 import React, { useState } from 'react';
 import { User, ShiftTemplate, Shift, Availability, Holiday } from '../types';
 import { ChevronLeft, ChevronRight, Layers, RefreshCw, AlertTriangle, Check, Plus, Trash2, FileText } from 'lucide-react';
@@ -98,6 +99,7 @@ export default function PooledShiftsDashboard({
     const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   });
+  const matrix = useMatrixWindow(datesArray);
 
   const handleDragStartTemplate = (templateId: string) => {
     setDraggedTemplateId(templateId);
@@ -170,20 +172,22 @@ export default function PooledShiftsDashboard({
 
       <div className="glass border border-white/10 rounded-3xl p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={handlePrevMonth} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none">
+          <button aria-label="Previous month" onClick={handlePrevMonth} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none">
             <ChevronLeft className="h-5 w-5" />
           </button>
           <div className="text-lg font-bold text-slate-100 font-display w-40 text-center">
             {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
           </div>
-          <button onClick={handleNextMonth} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none">
+          <button aria-label="Next month" onClick={handleNextMonth} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none">
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-1 glass border border-white/10 rounded-2xl p-4 h-fit">
+      <div className="min-w-0 space-y-3">
+        <details className="glass rounded-xl p-3">
+          <summary className="cursor-pointer text-sm font-semibold">Pooled templates</summary>
+          <div className="mt-3">
           <h2 className="text-xs font-mono text-slate-300 uppercase tracking-widest mb-3 flex items-center gap-2 font-semibold">
             <Layers className="h-4 w-4 text-blue-400" />
             Pooled Templates
@@ -199,7 +203,7 @@ export default function PooledShiftsDashboard({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                    <span className="text-xs font-bold text-slate-200">{t.name}</span>
+                    <span className="text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">{t.name}</span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono mt-1">{t.startTime} - {t.endTime}</div>
                 </div>
@@ -211,17 +215,22 @@ export default function PooledShiftsDashboard({
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </details>
 
-        <div className="xl:col-span-3 space-y-4">
-          <div className="glass border border-white/10 rounded-2xl overflow-x-auto shadow-inner">
-            <table className="w-full border-collapse text-left min-w-[900px]">
+        <div className="min-w-0 space-y-4">
+          {matrix.controls}
+              {matrix.search && !(users.some(u => matrix.matchesName(u.name))) && (
+                <p role="status" className="mb-3 text-sm text-slate-300">No staff match your search.</p>
+              )}
+          <div tabIndex={0} role="region" aria-label="Staff schedule matrix" className="duty-matrix-scroll">
+            <table className="duty-matrix">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
-                  <th className="p-4 text-xs font-bold text-slate-200 w-44 sticky left-0 bg-[#14112c]/95 backdrop-blur-md z-10 border-r border-white/10">
+                  <th scope="col" className="duty-matrix-staff p-3 text-sm font-bold text-slate-200 sticky left-0 bg-slate-900 z-10 border-r border-white/10">
                     Clinical Staff
                   </th>
-                  {datesArray.map(dateStr => {
+                  {matrix.visibleDates.map(dateStr => {
                     const isHoliday = holidays.some(h => h.date === dateStr);
                     const [y, m, d] = dateStr.split('-').map(Number);
                     const dateObj = new Date(y, m - 1, d);
@@ -231,41 +240,43 @@ export default function PooledShiftsDashboard({
 
                     return (
                       <th
+                        scope="col"
                         key={dateStr}
-                        className={`p-2 text-center border-r border-white/10 min-w-12 ${
+                        className={`p-2 text-center border-r border-white/10 duty-matrix-date ${
                           isHoliday || isWeekend
                             ? 'bg-blue-500/10 text-blue-400 font-semibold border-b border-blue-500/30'
                             : 'text-slate-400'
                         }`}
                       >
-                        <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>
-                        <div className="text-xs font-extrabold tabular-nums">{dayNum}</div>
+                        {matrix.dateHeading(dateStr, dayOfWeek, dayNum)}
                       </th>
                     );
                   })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
-                {[...users].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => {
+                {users.filter(u => matrix.matchesName(u.name)).sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => {
                   const isCurrentUser = u.id === currentUser.id;
                   return (
                   <tr key={u.id} className={`hover:bg-white/5 ${isCurrentUser ? 'bg-amber-500/5' : ''}`}>
-                    <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md z-10 border-r border-white/10">
-                      <div className="text-xs font-bold text-slate-200">
+                    <th scope="row" className="duty-matrix-staff p-3 sticky left-0 bg-slate-900 z-10 border-r border-white/10">
+                      <div className="text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">
                         {u.name}
                         {isCurrentUser && (
                           <span className="ml-1.5 text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>
                         )}
                       </div>
-                    </td>
-                    {datesArray.map(dateStr => {
+                    </th>
+                    {matrix.visibleDates.map(dateStr => {
                       const shift = shifts.find(s => s.userId === u.id && s.date === dateStr && pooledTemplates.some(t => t.id === s.templateId));
+                      const template = pooledTemplates.find(t => t.id === shift?.templateId);
                       const isAssigningThisCell = isAssigningShiftKey === `${u.id}_${dateStr}`;
                       const isRemovingThisShift = shift && isRemovingShiftId === shift.id;
 
                       return (
                         <td
                           key={dateStr}
+                          data-highlighted={matrix.highlightedDate === dateStr}
                           onDragOver={handleDragOver}
                           onDrop={() => handleDrop(u.id, dateStr)}
                           className={`p-1.5 text-center relative border-r border-white/5 ${
@@ -282,30 +293,31 @@ export default function PooledShiftsDashboard({
                               <RefreshCw className="h-4 w-4 animate-spin text-blue-400" />
                             </div>
                           ) : shift ? (
-                            <div
+                            <button type="button"
                               onClick={() => handleOpenShiftMenu(shift)}
-                              className="group relative rounded-lg p-1.5 text-[10px] text-left transition-colors cursor-pointer border hover:brightness-110"
-                              style={{ backgroundColor: (pooledTemplates.find(t => t.id === shift.templateId)?.color || '#333') + '20', borderColor: pooledTemplates.find(t => t.id === shift.templateId)?.color || '#555', color: '#fff' }}
-                              title="Click for details"
+                              className="duty-shift-card group relative rounded-lg p-2 text-left transition-colors cursor-pointer border hover:brightness-110"
+                              style={{ backgroundColor: (template?.color || '#333') + '20', borderColor: template?.color || '#555', color: '#fff' }}
+                              aria-label={`${u.name}, ${template?.name || 'Shift'}, ${dateStr}`}
                             >
-                              <div className="font-extrabold truncate flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: pooledTemplates.find(t => t.id === shift.templateId)?.color }} />
-                                {pooledTemplates.find(t => t.id === shift.templateId)?.name}
+                              <div className="text-sm font-semibold flex items-center gap-1.5 [overflow-wrap:anywhere]">
+                                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: template?.color }} />
+                                {template?.name || 'Shift'}
                                 {shift.notes && <FileText className="h-3 w-3 opacity-80 shrink-0 ml-auto" />}
                               </div>
-                            </div>
+                              {template && <div className="mt-0.5 text-xs tabular-nums">{template.startTime} – {template.endTime}</div>}
+                            </button>
                           ) : (
-                            <div 
+                            <button type="button" disabled={!pooledTemplates.length}
                               onClick={() => {
                                 if (pooledTemplates.length > 0) {
                                   assignShift(u.id, dateStr, pooledTemplates[0].id);
                                 }
                               }}
-                              className="w-full h-full text-slate-500 hover:text-slate-300 flex items-center justify-center border border-dashed border-transparent hover:border-white/10 rounded-lg text-xs cursor-pointer"
-                              title="Click to assign first pooled shift template or drop one here"
+                              className="w-full h-full min-h-10 text-slate-400 hover:text-white hover:bg-white/5 flex items-center justify-center rounded-lg text-xs cursor-pointer"
+                              aria-label={`Assign ${pooledTemplates[0]?.name ?? 'pooled shift'} to ${u.name} on ${dateStr}`}
                             >
-                              <Plus className="h-3.5 w-3.5 opacity-0 hover:opacity-100 transition-opacity" />
-                            </div>
+                              <Plus className="h-4 w-4" />
+                            </button>
                           )}
                         </td>
                       );

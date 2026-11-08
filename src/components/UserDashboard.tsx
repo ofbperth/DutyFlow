@@ -1,3 +1,4 @@
+import { useMatrixWindow } from './MatrixControls';
 import React, { useState, useEffect } from 'react';
 import {
   Calendar,
@@ -31,7 +32,7 @@ import FourWeekCalendarView from './FourWeekCalendarView';
 import TouchContextMenu from './TouchContextMenu';
 import DayInspectorPanel from './DayInspectorPanel';
 import {
-  saveAvailability,
+  saveAvailabilities,
   deleteAvailability,
   saveShiftSwap,
   updateUserProfile,
@@ -101,6 +102,7 @@ export default function UserDashboard({
 
   // Submit Availability State
   const [availDate, setAvailDate] = useState('');
+  const [queuedAvailDates, setQueuedAvailDates] = useState<string[]>([]);
   const [availStatus, setAvailStatus] = useState<'unavailable' | 'preferred'>('unavailable');
   const [availNotes, setAvailNotes] = useState('');
 
@@ -173,6 +175,7 @@ export default function UserDashboard({
   };
 
   const datesArray = getDatesInRange(activePeriod.startDate, activePeriod.endDate);
+  const matrix = useMatrixWindow(datesArray);
 
   // Get current user's shifts
   const myShifts = shifts.filter(
@@ -322,30 +325,29 @@ export default function UserDashboard({
   // Handle Submit Availability
   const handleSubmitAvailability = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!availDate) return;
+    const dates = [...new Set([...queuedAvailDates, ...(availDate ? [availDate] : [])])].sort();
+    if (!dates.length || isSubmittingAvail) return;
 
-    // Check if user is already assigned a shift on this day
-    const hasShift = shifts.some(s => s.userId === currentUser.id && s.date === availDate);
-    if (availStatus === 'unavailable' && hasShift) {
-      alert(`Warning: You have already been assigned a shift on ${availDate}. Please contact your scheduler to resolve this conflict.`);
+    const conflicts = dates.filter(date => shifts.some(shift => shift.userId === currentUser.id && shift.date === date));
+    if (availStatus === 'unavailable' && conflicts.length) {
+      alert(`You already have shifts on ${conflicts.join(', ')}. Contact your scheduler to resolve the conflict.`);
     }
 
     setIsSubmittingAvail(true);
     try {
-      const id = `avail-${Date.now()}`;
-      const newAvail: Availability = {
-        id,
+      const entries: Availability[] = dates.map(date => ({
+        id: availabilities.find(entry => entry.userId === currentUser.id && entry.date === date)?.id ?? `avail-${encodeURIComponent(currentUser.id)}-${date}`,
         userId: currentUser.id,
-        date: availDate,
+        date,
         status: availStatus,
         notes: availNotes.trim()
-      };
-
-      await saveAvailability(newAvail);
+      }));
+      await saveAvailabilities(entries);
       setAvailDate('');
+      setQueuedAvailDates([]);
       setAvailNotes('');
       await onRefresh();
-      triggerSuccess('Availability submitted.');
+      triggerSuccess(`Saved availability for ${dates.length} ${dates.length === 1 ? 'date' : 'dates'}.`);
     } catch (err: any) {
       triggerError(err.message || 'Failed to submit availability');
     } finally {
@@ -545,6 +547,7 @@ export default function UserDashboard({
                 <div className="flex items-center bg-white/5 border border-white/10 p-1 rounded-xl" id="dashboard-view-switcher">
                   <button
                     type="button"
+                    aria-pressed={viewMode === 'calendar'}
                     onClick={() => setViewMode('calendar')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       viewMode === 'calendar'
@@ -553,10 +556,11 @@ export default function UserDashboard({
                     }`}
                     id="user-dashboard-calendar-mode-btn"
                   >
-                    📅 4-Week Calendar
+                    Calendar
                   </button>
                   <button
                     type="button"
+                    aria-pressed={viewMode === 'matrix'}
                     onClick={() => setViewMode('matrix')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       viewMode === 'matrix'
@@ -565,7 +569,7 @@ export default function UserDashboard({
                     }`}
                     id="user-dashboard-matrix-mode-btn"
                   >
-                    📊 Matrix
+                    Matrix
                   </button>
                 </div>
 
@@ -608,6 +612,7 @@ export default function UserDashboard({
             {(() => {
               const assignments: ShiftAssignment[] = shifts
                 .filter(s => {
+                  if (!showOnlyInvolved) return true;
                   // Always include user's own shifts
                   if (s.userId === currentUser.id) return true;
 
@@ -656,11 +661,9 @@ export default function UserDashboard({
                 return (
                   <>
                     <FourWeekCalendarView
-                      startDate={activePeriod.startDate}
+                      dates={datesArray}
                       assignments={assignments}
                       currentUserId={currentUser.id}
-                      viewMode={viewMode}
-                      onViewModeChange={setViewMode}
                       onSelectDate={(date) => setSelectedDate(date)}
                       selectedDate={selectedDate}
                       onContextMenuDate={(date) => {
@@ -709,15 +712,18 @@ export default function UserDashboard({
                   )}
 
                   {/* Shift grid matrix (Group-organized schedule grid) */}
-                  <div className="sm:hidden text-[10px] text-slate-400 text-center mb-2 bg-white/5 py-1.5 rounded-lg border border-white/10">Swipe left/right to view full schedule</div>
-                  <div className="glass border border-white/10 rounded-2xl overflow-x-auto shadow-inner">
-                    <table className="w-full border-collapse text-left min-w-[900px]">
+                  {matrix.controls}
+              {matrix.search && !(displayedGroupsWithUsers.some(({ users }) => users.some(u => matrix.matchesName(u.name))) || (shouldShowUnassigned && unassignedUsers.some(u => matrix.matchesName(u.name)))) && (
+                <p role="status" className="mb-3 text-sm text-slate-300">No staff match your search.</p>
+              )}
+                  <div tabIndex={0} role="region" aria-label="Staff schedule matrix" className="duty-matrix-scroll">
+                    <table className="duty-matrix">
                       <thead>
                         <tr className="bg-white/5 border-b border-white/10">
-                          <th className="p-4 text-xs font-bold text-slate-200 w-44 sticky left-0 bg-[#14112c]/95 backdrop-blur-md z-10 border-r border-white/10">
+                          <th scope="col" className="duty-matrix-staff p-3 text-sm font-bold text-slate-200 sticky left-0 bg-slate-900 z-10 border-r border-white/10">
                             Teammate
                           </th>
-                          {datesArray.map(dateStr => {
+                          {matrix.visibleDates.map(dateStr => {
                             const isHoliday = holidays.some(h => h.date === dateStr);
                             const dateObj = parseLocalDate(dateStr);
                             const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
@@ -726,15 +732,15 @@ export default function UserDashboard({
 
                             return (
                               <th
+                                scope="col"
                                 key={dateStr}
-                                className={`p-2 text-center border-r border-white/10 min-w-12 ${
+                                className={`p-2 text-center border-r border-white/10 duty-matrix-date ${
                                   isHoliday || isWeekend
                                     ? 'bg-blue-500/10 text-blue-400 font-semibold border-b border-blue-500/30'
                                     : 'text-slate-400'
                                 }`}
                               >
-                                <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>
-                                <div className="text-xs font-extrabold tabular-nums">{dayNum}</div>
+                                {matrix.dateHeading(dateStr, dayOfWeek, dayNum)}
                               </th>
                             );
                           })}
@@ -744,7 +750,7 @@ export default function UserDashboard({
                         {displayedGroupsWithUsers.map(({ group, users: groupUsers }) => (
                           <React.Fragment key={group.id}>
                             <tr className="bg-white/[0.03] border-y border-white/10">
-                              <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-20" style={{
+                              <td colSpan={matrix.visibleDates.length + 1} className="p-2 z-0" style={{
                                 backgroundColor: group.color ? `${group.color}20` : 'rgba(255,255,255,0.05)',
                                 backdropFilter: 'blur(12px)',
                                 borderLeft: `4px solid ${group.color || '#fff'}`
@@ -757,15 +763,15 @@ export default function UserDashboard({
                               </td>
                             </tr>
                             {groupUsers.length > 0 ? (
-                              [...groupUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => {
+                              groupUsers.filter(u => matrix.matchesName(u.name)).sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => {
                                 const userAssignment = rotationAssignments.find(a => a.userId === u.id);
                                 const userHomeGroup = groups.find(g => g.id === userAssignment?.groupId);
                                 const isOuterDoctor = userHomeGroup && userHomeGroup.id !== group.id;
 
                                 return (
                                   <tr key={`${group.id}-${u.id}`} className={`hover:bg-white/5 ${u.id === currentUser.id ? 'bg-amber-500/5' : ''}`}>
-                                    <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md border-r border-white/10 font-medium text-slate-300 z-10">
-                                      <div className="text-xs font-bold text-slate-200 flex items-center flex-wrap gap-1">
+                                    <th scope="row" className="duty-matrix-staff p-3 sticky left-0 bg-slate-900 border-r border-white/10 font-medium text-slate-300 z-10">
+                                      <div className="text-sm font-semibold text-slate-100 flex items-center flex-wrap gap-1 [overflow-wrap:anywhere]">
                                         <span>{u.name}</span>
                                         {u.id === currentUser.id && (
                                           <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>
@@ -776,15 +782,16 @@ export default function UserDashboard({
                                           </span>
                                         )}
                                       </div>
-                                    </td>
+                                    </th>
 
                                     {/* Day Cells */}
-                                    {datesArray.map(dateStr => {
+                                    {matrix.visibleDates.map(dateStr => {
                                       const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
                                       
                                       return (
                                         <td
                                           key={dateStr}
+                                          data-highlighted={matrix.highlightedDate === dateStr}
                                           className={`p-1.5 text-center relative border-r border-white/5 ${u.id === currentUser.id ? 'bg-white/[0.02]' : ''}`}
                                           style={{ height: '54px' }}
                                         >
@@ -796,31 +803,31 @@ export default function UserDashboard({
                                               const isCrossGroupShift = targetGroupId && targetGroupId !== 'group-universal' && targetGroupId !== 'group-pooled' && userHomeGroup && targetGroupId !== userHomeGroup.id;
                                               return (
                                                 <div
-                                                  className="group relative rounded-lg p-1.5 text-[10px] text-left shadow-sm border flex flex-col justify-between"
+                                                  className="duty-shift-card group relative rounded-lg p-2 text-left shadow-sm border flex flex-col justify-between"
                                                   style={{
                                                     backgroundColor: (temp?.color || '#333') + '20',
                                                     borderColor: temp?.color || '#555',
                                                     color: '#fff'
                                                   }}
                                                 >
-                                                  <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
-                                                    <div className="flex items-center gap-1 min-w-0 truncate">
+                                                  <div className="font-semibold flex items-center justify-between gap-1 text-sm leading-snug">
+                                                    <div className="flex items-center gap-1 min-w-0">
                                                       <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
-                                                      <span className="truncate">{temp?.name}</span>
+                                                      <span className="[overflow-wrap:anywhere]">{temp?.name || 'Shift'}</span>
                                                     </div>
                                                   </div>
-                                                  <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
+                                                  <div className="text-xs text-slate-200 mt-0.5 tabular-nums">
                                                     {temp?.startTime} - {temp?.endTime}
                                                   </div>
                                                   <div className="mt-1">
-                                                    <span className={`inline-block px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                                                    <span className={`inline-block px-1 py-0.25 rounded text-xs font-semibold border ${
                                                       shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                                                     }`}>
                                                       {shift.status}
                                                     </span>
                                                   </div>
                                                   {isCrossGroupShift && targetGroup && (
-                                                    <div className="mt-1 text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
+                                                    <div className="mt-1 text-xs font-semibold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
                                                       <span>🏷️</span>
                                                       <span>{targetGroup.name}</span>
                                                     </div>
@@ -839,7 +846,7 @@ export default function UserDashboard({
                             })
                           ) : (
                               <tr>
-                                <td colSpan={datesArray.length + 1} className="p-4 text-center border-b border-white/5 bg-white/[0.02]">
+                                <td colSpan={matrix.visibleDates.length + 1} className="p-4 text-center border-b border-white/5 bg-white/[0.02]">
                                   <div className="flex flex-col items-center justify-center gap-2 py-2">
                                     <span className="text-xs text-slate-400">No doctors assigned to {group.name} yet</span>
                                   </div>
@@ -852,7 +859,7 @@ export default function UserDashboard({
                         {shouldShowUnassigned && unassignedUsers.length > 0 && (
                           <React.Fragment>
                             <tr className="bg-white/[0.03] border-y border-white/10">
-                              <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-20" style={{
+                              <td colSpan={matrix.visibleDates.length + 1} className="p-2 z-0" style={{
                                 backgroundColor: 'rgba(255,255,255,0.05)',
                                 backdropFilter: 'blur(12px)',
                                 borderLeft: `4px solid #fff`
@@ -864,21 +871,22 @@ export default function UserDashboard({
                                 </div>
                               </td>
                             </tr>
-                            {[...unassignedUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => (
+                            {unassignedUsers.filter(u => matrix.matchesName(u.name)).sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => (
                                 <tr key={u.id} className={`hover:bg-white/5 ${u.id === currentUser.id ? 'bg-amber-500/5' : ''}`}>
-                                  <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md border-r border-white/10 font-medium text-slate-300 z-10">
-                                    <div className="text-xs font-bold text-slate-200">
+                                  <th scope="row" className="duty-matrix-staff p-3 sticky left-0 bg-slate-900 border-r border-white/10 font-medium text-slate-300 z-10">
+                                    <div className="text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">
                                       {u.name} {u.id === currentUser.id && <span className="ml-1.5 text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>}
                                     </div>
-                                  </td>
+                                  </th>
 
                                   {/* Day Cells */}
-                                  {datesArray.map(dateStr => {
+                                  {matrix.visibleDates.map(dateStr => {
                                     const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
                                     
                                     return (
                                       <td
                                         key={dateStr}
+                                        data-highlighted={matrix.highlightedDate === dateStr}
                                         className={`p-1.5 text-center relative border-r border-white/5 ${u.id === currentUser.id ? 'bg-white/[0.02]' : ''}`}
                                         style={{ height: '54px' }}
                                       >
@@ -887,24 +895,24 @@ export default function UserDashboard({
                                             const temp = templates.find(t => t.id === shift.templateId);
                                             return (
                                               <div
-                                                className="group relative rounded-lg p-1.5 text-[10px] text-left shadow-sm border"
+                                                className="duty-shift-card group relative rounded-lg p-2 text-left shadow-sm border"
                                                 style={{
                                                   backgroundColor: (temp?.color || '#333') + '20',
                                                   borderColor: temp?.color || '#555',
                                                   color: '#fff'
                                                 }}
                                               >
-                                                <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
-                                                  <div className="flex items-center gap-1 min-w-0 truncate">
+                                                <div className="font-semibold flex items-center justify-between gap-1 text-sm leading-snug">
+                                                  <div className="flex items-center gap-1 min-w-0">
                                                     <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
-                                                    <span className="truncate">{temp?.name}</span>
+                                                    <span className="[overflow-wrap:anywhere]">{temp?.name || 'Shift'}</span>
                                                   </div>
                                                 </div>
-                                                <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
+                                                <div className="text-xs text-slate-200 mt-0.5 tabular-nums">
                                                   {temp?.startTime} - {temp?.endTime}
                                                 </div>
                                                 <div className="mt-1">
-                                                  <span className={`inline-block px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                                                  <span className={`inline-block px-1 py-0.25 rounded text-xs font-semibold border ${
                                                     shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                                                   }`}>
                                                     {shift.status}
@@ -944,16 +952,34 @@ export default function UserDashboard({
               </h2>
 
               <form onSubmit={handleSubmitAvailability} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">SELECT DATE</label>
-                  <input
-                    type="date"
-                    required
-                    value={availDate}
-                    onChange={e => setAvailDate(e.target.value)}
-                    onClick={(e) => { try { (e.target as any).showPicker(); } catch (err) {} }}
-                    className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none cursor-pointer"
-                  />
+                <div className="space-y-2">
+                  <label htmlFor="availability-date" className="block text-sm text-slate-200">Dates</label>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      type="date" id="availability-date" className="duty-control min-w-0 flex-1"
+                      value={availDate} onChange={event => setAvailDate(event.target.value)}
+                      disabled={isSubmittingAvail}
+                    />
+                    <button type="button" className="duty-control" disabled={!availDate || isSubmittingAvail || queuedAvailDates.length >= 499}
+                      onClick={() => {
+                        setQueuedAvailDates(dates => [...new Set([...dates, availDate])].sort());
+                        setAvailDate('');
+                      }}>
+                      Add date
+                    </button>
+                  </div>
+                  {queuedAvailDates.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5" aria-label="Selected dates">
+                      {queuedAvailDates.map(date => (
+                        <li key={date}>
+                          <button type="button" className="duty-control" aria-label={`Remove ${date}`} disabled={isSubmittingAvail}
+                            onClick={() => setQueuedAvailDates(dates => dates.filter(item => item !== date))}>
+                            {date} ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div>
@@ -991,13 +1017,13 @@ export default function UserDashboard({
 
                 <button
                   type="submit"
-                  disabled={isSubmittingAvail}
+                  disabled={isSubmittingAvail || (!availDate && !queuedAvailDates.length)}
                   className="w-full bg-blue-400 hover:bg-blue-300 disabled:bg-blue-950 disabled:text-blue-500 text-blue-950 font-bold py-2.5 px-4 rounded-xl transition-colors cursor-pointer text-xs shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
                 >
                   {isSubmittingAvail && (
                     <RefreshCw className="h-4 w-4 animate-spin text-blue-950" />
                   )}
-                  {isSubmittingAvail ? 'Submitting...' : 'Submit Preference'}
+                  {isSubmittingAvail ? 'Submitting...' : 'Save availability'}
                 </button>
               </form>
             </div>
@@ -1049,91 +1075,13 @@ export default function UserDashboard({
         {/* Shift Trades & Swaps */}
         {userSubTab === 'swaps' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Create swap request */}
-            <div className="glass border border-white/10 p-5 rounded-3xl">
-              <h2 className="text-sm font-semibold text-white mb-4 border-b border-white/5 pb-3 flex items-center gap-2 font-display">
-                <ArrowRightLeft className="h-4 w-4 text-blue-400" />
-                Initiate Shift Swap Request
-              </h2>
-
-              <form onSubmit={handleRequestSwap} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">SELECT YOUR OWN SHIFT TO TRADE</label>
-                  <select
-                    value={selectedMyShiftId}
-                    onChange={e => setSelectedMyShiftId(e.target.value)}
-                    className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-                  >
-                    <option value="" className="bg-slate-900">Select Shift</option>
-                    {myShifts.map(s => {
-                      const t = templates.find(x => x.id === s.templateId);
-                      return (
-                        <option key={s.id} value={s.id} className="bg-slate-900">
-                          {s.date} - {t?.name} ({t?.startTime} - {t?.endTime})
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">CHOOSE COLLEAGUE</label>
-                  <select
-                    value={selectedTargetUserId}
-                    onChange={e => {
-                      setSelectedTargetUserId(e.target.value);
-                      setSelectedTargetShiftId('');
-                    }}
-                    className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-                  >
-                    <option value="" className="bg-slate-900">Select Colleague</option>
-                    {peerUsers.map(p => (
-                      <option key={p.id} value={p.id} className="bg-slate-900">{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedTargetUserId && (
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">SELECT TARGET SHIFT (OPTIONAL)</label>
-                    <select
-                      value={selectedTargetShiftId}
-                      onChange={e => setSelectedTargetShiftId(e.target.value)}
-                      className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-                    >
-                      <option value="" className="bg-slate-900">Choose Shift (Or leave blank to ask colleague to cover)</option>
-                      {peerShifts.map(s => {
-                        const t = templates.find(x => x.id === s.templateId);
-                        return (
-                          <option key={s.id} value={s.id} className="bg-slate-900">
-                            {s.date} - {t?.name} ({t?.startTime} - {t?.endTime})
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isRequestingSwap}
-                  className="w-full bg-blue-400 hover:bg-blue-300 disabled:bg-blue-950 disabled:text-blue-500 text-blue-950 font-bold py-2.5 px-4 rounded-xl transition-colors cursor-pointer text-xs shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-                >
-                  {isRequestingSwap && (
-                    <RefreshCw className="h-4 w-4 animate-spin text-blue-950" />
-                  )}
-                  {isRequestingSwap ? 'Submitting...' : 'Submit Swap Request'}
-                </button>
-              </form>
-            </div>
-
             {/* Swap list */}
             <div className="glass border border-white/10 p-5 rounded-3xl space-y-4">
-              <h2 className="text-sm font-semibold text-white border-b border-white/5 pb-3 font-display">Active Shift Swap Operations</h2>
+              <h2 className="text-sm font-semibold text-white border-b border-white/5 pb-3 font-display">Swap requests</h2>
 
               {/* Pending requested to me */}
               <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-slate-400">Incoming Swap Requests</h3>
+                <h3 className="text-xs font-semibold text-slate-400">Awaiting your response</h3>
                 {swaps
                   .filter(s => s.targetUserId === currentUser.id && s.status === 'pending')
                   .map(s => {
@@ -1216,6 +1164,85 @@ export default function UserDashboard({
                 </div>
               </div>
             </div>
+
+            {/* Create swap request */}
+            <div className="glass border border-white/10 p-5 rounded-3xl">
+              <h2 className="text-sm font-semibold text-white mb-4 border-b border-white/5 pb-3 flex items-center gap-2 font-display">
+                <ArrowRightLeft className="h-4 w-4 text-blue-400" />
+                Request a swap
+              </h2>
+
+              <form onSubmit={handleRequestSwap} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">1. Your shift</label>
+                  <select
+                    value={selectedMyShiftId}
+                    onChange={e => setSelectedMyShiftId(e.target.value)}
+                    className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                  >
+                    <option value="" className="bg-slate-900">Select Shift</option>
+                    {myShifts.map(s => {
+                      const t = templates.find(x => x.id === s.templateId);
+                      return (
+                        <option key={s.id} value={s.id} className="bg-slate-900">
+                          {s.date} - {t?.name} ({t?.startTime} - {t?.endTime})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">2. Colleague</label>
+                  <select
+                    value={selectedTargetUserId}
+                    onChange={e => {
+                      setSelectedTargetUserId(e.target.value);
+                      setSelectedTargetShiftId('');
+                    }}
+                    className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                  >
+                    <option value="" className="bg-slate-900">Select Colleague</option>
+                    {peerUsers.map(p => (
+                      <option key={p.id} value={p.id} className="bg-slate-900">{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedTargetUserId && (
+                  <div>
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">3. Their shift (optional)</label>
+                    <select
+                      value={selectedTargetShiftId}
+                      onChange={e => setSelectedTargetShiftId(e.target.value)}
+                      className="w-full text-xs rounded-xl border border-white/10 bg-white/5 p-2.5 text-white focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                    >
+                      <option value="" className="bg-slate-900">Choose Shift (Or leave blank to ask colleague to cover)</option>
+                      {peerShifts.map(s => {
+                        const t = templates.find(x => x.id === s.templateId);
+                        return (
+                          <option key={s.id} value={s.id} className="bg-slate-900">
+                            {s.date} - {t?.name} ({t?.startTime} - {t?.endTime})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isRequestingSwap}
+                  className="w-full bg-blue-400 hover:bg-blue-300 disabled:bg-blue-950 disabled:text-blue-500 text-blue-950 font-bold py-2.5 px-4 rounded-xl transition-colors cursor-pointer text-xs shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                >
+                  {isRequestingSwap && (
+                    <RefreshCw className="h-4 w-4 animate-spin text-blue-950" />
+                  )}
+                  {isRequestingSwap ? 'Submitting...' : 'Submit Swap Request'}
+                </button>
+              </form>
+            </div>
+
           </div>
         )}
 

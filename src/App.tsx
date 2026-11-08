@@ -372,20 +372,18 @@ export default function App() {
 
 
   return (
-    <div className="min-h-screen bg-transparent text-slate-200 flex flex-col font-sans select-none pb-12 relative" id="app-root">
-      <div className="mesh-bg" />
+    <div className="min-h-screen bg-transparent text-slate-200 flex flex-col font-sans pb-12 relative" id="app-root">
       <Navbar
         user={currentUser}
         onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onRoleChange={handleRoleChange}
         onOpenPrivacy={handleOpenPrivacy}
         onOpenTerms={handleOpenTerms}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-6">
+      <main className="flex-1 max-w-screen-2xl mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 mt-4">
         {/* Sync or system notifications */}
         {infoMessage && (
           <div className="mb-4 rounded-2xl bg-teal-500/10 border border-teal-500/30 p-4 text-xs text-teal-400 flex items-center gap-2 animate-fade-in" id="app-info-banner">
@@ -409,7 +407,7 @@ export default function App() {
         )}
 
         {/* Render selected workspace */}
-        <div id="active-workspace-panel" className="animate-fade-in">
+        <div id="active-workspace-panel">
           <Suspense fallback={null}>
             {renderDashboard()}
           </Suspense>

@@ -1,3 +1,4 @@
+import { useMatrixWindow } from './MatrixControls';
 import React, { useState } from 'react';
 import {
   Calendar,
@@ -20,7 +21,6 @@ import {
 } from 'lucide-react';
 import { User, Shift, ShiftTemplate, Availability, Holiday, SchedulePeriod, DoctorGroup, GroupRotationAssignment, CROSS_GROUP_RULES, getAllowedTargetGroupIdsForHomeGroup, ViewMode, ShiftAssignment } from '../types';
 import FourWeekCalendarView from './FourWeekCalendarView';
-import TouchContextMenu from './TouchContextMenu';
 import BatchAssignModal from './BatchAssignModal';
 import DayInspectorPanel from './DayInspectorPanel';
 import AssignShiftModal from './AssignShiftModal';
@@ -98,8 +98,6 @@ export default function SchedulerDashboard({
   const [copiedRosterDate, setCopiedRosterDate] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showBatchModal, setShowBatchModal] = useState<boolean>(false);
-  const [touchMenuDate, setTouchMenuDate] = useState<string | null>(null);
-  const [showTouchMenu, setShowTouchMenu] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (assigningCell || activeShiftMenu || conflictCell || showPublishConfirm || assignModalData) {
@@ -173,6 +171,7 @@ export default function SchedulerDashboard({
   };
 
   const datesArray = getDatesInRange(activePeriod.startDate, activePeriod.endDate);
+  const matrix = useMatrixWindow(datesArray);
 
 
 
@@ -311,12 +310,6 @@ export default function SchedulerDashboard({
     } catch (err: any) {
       triggerStatus(err.message || 'Failed to clear day roster', 'error');
     }
-  };
-
-  // Touch Context Menu Trigger
-  const handleContextMenuDate = (dateStr: string) => {
-    setTouchMenuDate(dateStr);
-    setShowTouchMenu(true);
   };
 
   // Core Shift Assignment Logic
@@ -589,8 +582,8 @@ export default function SchedulerDashboard({
 
     return (
     <tr key={`${currentGroup?.id || 'unassigned'}-${u.id}`} className={`hover:bg-white/5 ${isCurrentUser ? 'bg-amber-500/5' : ''}`}>
-      <td className="p-3 sticky left-0 bg-[#14112c]/95 backdrop-blur-md border-r border-white/10 font-medium text-slate-300 z-10">
-        <div className="text-xs font-bold text-slate-200 flex items-center flex-wrap gap-1">
+      <th scope="row" className="duty-matrix-staff p-3 sticky left-0 bg-slate-900 border-r border-white/10 font-medium text-slate-300 z-10">
+        <div className="text-sm font-semibold text-slate-100 flex items-center flex-wrap gap-1 [overflow-wrap:anywhere]">
           <span>{u.name}</span>
           {isCurrentUser && (
             <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded uppercase tracking-wider">(YOU)</span>
@@ -612,9 +605,9 @@ export default function SchedulerDashboard({
           <span className="text-[9px] font-mono font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1 rounded">Total: {totalShiftsCount}</span>
           <span className="text-[9px] font-mono font-semibold bg-slate-500/10 text-slate-300 border border-slate-500/20 px-1 rounded cursor-help">Details</span>
         </div>
-      </td>
+      </th>
 
-      {datesArray.map(dateStr => {
+      {matrix.visibleDates.map(dateStr => {
         const shift = shifts.find(s => s.userId === u.id && s.date === dateStr);
         const avail = availabilities.find(a => a.userId === u.id && a.date === dateStr);
         let cellBorder = 'border-r border-white/5';
@@ -633,6 +626,7 @@ export default function SchedulerDashboard({
         return (
           <td
             key={dateStr}
+            data-highlighted={matrix.highlightedDate === dateStr}
             onDragOver={handleDragOver}
             onDrop={() => handleDrop(u.id, dateStr)}
             className={`p-1.5 text-center relative ${cellBorder}`}
@@ -655,45 +649,46 @@ export default function SchedulerDashboard({
                 const targetGroup = groups.find(g => g.id === targetGroupId);
                 const isCrossGroupShift = targetGroupId && targetGroupId !== 'group-universal' && targetGroupId !== 'group-pooled' && userHomeGroup && targetGroupId !== userHomeGroup.id;
                 return (
-                  <div
+                  <button type="button"
                     onClick={() => handleOpenShiftMenu(shift)}
-                    className="group relative rounded-lg p-1.5 text-[10px] text-left transition-colors hover:brightness-110 hover:border-white/40 cursor-pointer shadow-sm border flex flex-col justify-between"
+                    aria-label={`${u.name}, ${temp?.name || 'Shift'}, ${dateStr}`}
+                    className="duty-shift-card group relative rounded-lg p-2 text-left transition-colors hover:brightness-110 hover:border-white/40 cursor-pointer shadow-sm border flex flex-col justify-between"
                     style={{ backgroundColor: (temp?.color || '#333') + '20', borderColor: temp?.color || '#555', color: '#fff' }}
                     title={`${temp?.name || 'Shift'} (${temp?.startTime} - ${temp?.endTime}) - Group: ${targetGroup?.name || 'General'}`}
                   >
-                    <div className="font-extrabold flex items-center justify-between gap-1 text-[10px]">
-                      <div className="flex items-center gap-1 min-w-0 truncate">
+                    <div className="font-semibold flex items-center justify-between gap-1 text-sm leading-snug">
+                      <div className="flex items-center gap-1 min-w-0">
                         <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: temp?.color }} />
-                        <span className="truncate">{temp?.name}</span>
+                        <span className="[overflow-wrap:anywhere]">{temp?.name || 'Shift'}</span>
                       </div>
                       {shift.notes && <FileText className="h-3 w-3 opacity-80 shrink-0" />}
                     </div>
-                    <div className="text-[9px] opacity-70 mt-0.5 font-mono tabular-nums">
+                    <div className="text-xs text-slate-200 mt-0.5 tabular-nums">
                       {temp?.startTime} - {temp?.endTime}
                     </div>
                     <div className="mt-1">
-                      <span className={`inline-block px-1 py-0.25 rounded text-[8px] font-mono tracking-wider font-semibold uppercase leading-none border ${
+                      <span className={`inline-block px-1 py-0.25 rounded text-xs font-semibold border ${
                         shift.status === 'published' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                       }`}>
                         {shift.status}
                       </span>
                     </div>
                     {isCrossGroupShift && targetGroup && (
-                      <div className="mt-1 text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
+                      <div className="mt-1 text-xs font-semibold px-1 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40 inline-flex items-center gap-0.5 self-start">
                         <span>🏷️</span>
                         <span>{targetGroup.name}</span>
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })()
             ) : (
               <button
                 onClick={() => setAssigningCell({ userId: u.id, dateStr })}
-                className="w-full h-full text-slate-500 hover:text-slate-300 flex items-center justify-center border border-dashed border-transparent hover:border-white/10 rounded-lg text-xs"
-                title="Click to assign shift"
+                className="w-full h-full min-h-10 text-slate-400 hover:text-white hover:bg-white/5 flex items-center justify-center rounded-lg text-xs"
+                aria-label={`Assign shift to ${u.name} on ${dateStr}`}
               >
-                <Plus className="h-3.5 w-3.5 opacity-0 hover:opacity-100 transition-opacity" />
+                <Plus className="h-4 w-4" />
               </button>
             )}
             {!shift && !isAssigningThisCell && avail && (
@@ -768,6 +763,7 @@ export default function SchedulerDashboard({
           <div className="flex items-center bg-white/5 border border-white/10 p-1 rounded-xl" id="scheduler-view-switcher">
             <button
               type="button"
+              aria-pressed={viewMode === 'calendar'}
               onClick={() => setViewMode('calendar')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'calendar'
@@ -776,10 +772,11 @@ export default function SchedulerDashboard({
               }`}
               id="scheduler-calendar-mode-btn"
             >
-              📅 4-Week Calendar
+              Calendar
             </button>
             <button
               type="button"
+              aria-pressed={viewMode === 'matrix'}
               onClick={() => setViewMode('matrix')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'matrix'
@@ -788,7 +785,7 @@ export default function SchedulerDashboard({
               }`}
               id="scheduler-matrix-mode-btn"
             >
-              📊 Matrix
+              Matrix
             </button>
           </div>
 
@@ -796,11 +793,11 @@ export default function SchedulerDashboard({
           <button
             type="button"
             onClick={() => setShowBatchModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/30 ring-2 ring-indigo-400/40 cursor-pointer transition-all hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs border border-slate-600 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
             id="upper-panel-batch-assign-btn"
           >
             <Layers className="h-4 w-4" />
-            <span>⚡ Batch Assign</span>
+            <span>Batch Assign</span>
           </button>
 
           {isAdmin && (
@@ -841,7 +838,7 @@ export default function SchedulerDashboard({
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                {isPublishing ? 'Publishing...' : 'Publish Month Drafts'}
+                {isPublishing ? 'Publishing...' : 'Publish Drafts'}
               </button>
             </>
           )}
@@ -849,9 +846,11 @@ export default function SchedulerDashboard({
       </div>
 
       {/* Workspace Grid Container */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6" id="scheduler-workspace">
+      <div className="min-w-0 space-y-3" id="scheduler-workspace">
         {/* Templates Sidebar */}
-        <div className="xl:col-span-1 glass border border-white/10 rounded-2xl p-4 h-fit" id="templates-sidebar">
+        <details className="glass rounded-xl p-3" id="templates-sidebar">
+          <summary className="cursor-pointer text-sm font-semibold">Shift templates</summary>
+          <div className="mt-3">
           <h2 className="text-xs font-mono text-slate-300 uppercase tracking-widest mb-3 flex items-center gap-2 font-semibold">
             Shift Templates
           </h2>
@@ -875,7 +874,7 @@ export default function SchedulerDashboard({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                          <span className="text-xs font-bold text-slate-200">{t.name}</span>
+                          <span className="text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">{t.name}</span>
                         </div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5 tabular-nums">{t.startTime} - {t.endTime}</div>
                       </div>
@@ -906,7 +905,7 @@ export default function SchedulerDashboard({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color || g.color }} />
-                            <span className="text-xs font-bold text-slate-200">{t.name}</span>
+                            <span className="text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">{t.name}</span>
                           </div>
                           <div className="text-[10px] text-slate-400 font-mono mt-0.5 tabular-nums">{t.startTime} - {t.endTime}</div>
                         </div>
@@ -946,13 +945,14 @@ export default function SchedulerDashboard({
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </details>
 
         {/* Main Workspace Area (4-Week Calendar View vs Classic Matrix View) */}
-        <div className="xl:col-span-3">
+        <div className="min-w-0">
           {viewMode === 'calendar' ? (
             <FourWeekCalendarView
-              startDate={activePeriod.startDate}
+              dates={datesArray}
               assignments={shifts
                 .filter(s => {
                   if (isGroupScopedScheduler) return canManageShift(s);
@@ -992,33 +992,29 @@ export default function SchedulerDashboard({
                   };
                 })}
               currentUserId={currentUser.id}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
               onSelectDate={(date) => setSelectedDate(date)}
               selectedDate={selectedDate}
-              isScheduler={true}
               onDropShift={handleCalendarDropShift}
-              onBatchAssign={handleBatchAssignShifts}
-              onOpenBatchAssign={() => setShowBatchModal(true)}
-              onCopyDayRoster={handleCopyDayRoster}
-              onPasteDayRoster={handlePasteDayRoster}
               copiedRosterDate={copiedRosterDate}
               selectedDates={selectedDates}
               onToggleSelectDate={handleToggleSelectDate}
-              onContextMenuDate={handleContextMenuDate}
+              onContextMenuDate={setSelectedDate}
               holidays={holidays}
             />
           ) : (
             <React.Fragment>
-              <div className="sm:hidden text-[10px] text-slate-400 text-center mb-2 bg-white/5 py-1.5 rounded-lg border border-white/10">Swipe left/right to view full schedule</div>
-              <div className="glass border border-white/10 rounded-2xl overflow-x-auto shadow-inner" id="schedule-matrix-container">
-            <table className="w-full border-collapse text-left min-w-[900px]">
+              {matrix.controls}
+              {matrix.search && !(displayedGroupsWithUsers.some(({ users }) => users.some(u => matrix.matchesName(u.name))) || (shouldShowUnassigned && unassignedUsers.some(u => matrix.matchesName(u.name)))) && (
+                <p role="status" className="mb-3 text-sm text-slate-300">No staff match your search.</p>
+              )}
+              <div tabIndex={0} role="region" aria-label="Staff schedule matrix" className="duty-matrix-scroll" id="schedule-matrix-container">
+            <table className="duty-matrix">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
-                  <th className="p-4 text-xs font-bold text-slate-200 w-44 sticky left-0 bg-[#14112c]/95 backdrop-blur-md z-10 border-r border-white/10">
+                  <th scope="col" className="duty-matrix-staff p-3 text-sm font-bold text-slate-200 sticky left-0 bg-slate-900 z-10 border-r border-white/10">
                     Clinical Staff
                   </th>
-                  {datesArray.map(dateStr => {
+                  {matrix.visibleDates.map(dateStr => {
                     const isHoliday = holidays.some(h => h.date === dateStr);
                     const dateObj = parseLocalDate(dateStr);
                     const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
@@ -1027,15 +1023,15 @@ export default function SchedulerDashboard({
 
                     return (
                       <th
+                        scope="col"
                         key={dateStr}
-                        className={`p-2 text-center border-r border-white/10 min-w-12 ${
+                        className={`p-2 text-center border-r border-white/10 duty-matrix-date ${
                           isHoliday || isWeekend
                             ? 'bg-blue-500/10 text-blue-400 font-semibold border-b border-blue-500/30'
                             : 'text-slate-400'
                         }`}
                       >
-                        <div className="text-[10px] font-mono font-medium">{dayOfWeek}</div>
-                        <div className="text-xs font-extrabold tabular-nums">{dayNum}</div>
+                        {matrix.dateHeading(dateStr, dayOfWeek, dayNum)}
                       </th>
                     );
                   })}
@@ -1060,7 +1056,7 @@ export default function SchedulerDashboard({
                   return (
                   <React.Fragment key={group.id}>
                     <tr className="bg-white/5">
-                      <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-10 border-r border-white/10" style={{ borderLeft: `4px solid ${group.color}` }}>
+                      <td colSpan={matrix.visibleDates.length + 1} className="p-2 z-0 border-r border-white/10" style={{ borderLeft: `4px solid ${group.color}` }}>
                         <div className="flex justify-between items-center w-full">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-200">{group.name}</span>
@@ -1116,10 +1112,10 @@ export default function SchedulerDashboard({
                       </td>
                     </tr>
                     {groupUsers.length > 0 ? (
-                      [...groupUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => renderUserRow(u, group))
+                      groupUsers.filter(u => matrix.matchesName(u.name)).sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => renderUserRow(u, group))
                     ) : (
                       <tr>
-                        <td colSpan={datesArray.length + 1} className="p-4 text-center border-b border-white/5 bg-white/[0.02]">
+                        <td colSpan={matrix.visibleDates.length + 1} className="p-4 text-center border-b border-white/5 bg-white/[0.02]">
                           <div className="flex flex-col items-center justify-center gap-2 py-2">
                             <span className="text-xs text-slate-400">No doctors assigned to this group yet</span>
                             {!group.isUniversal && (
@@ -1141,11 +1137,11 @@ export default function SchedulerDashboard({
                 {shouldShowUnassigned && unassignedUsers.length > 0 && (
                   <React.Fragment>
                     <tr className="bg-white/5">
-                      <td colSpan={datesArray.length + 1} className="p-2 sticky left-0 z-10 border-r border-white/10">
+                      <td colSpan={matrix.visibleDates.length + 1} className="p-2 z-0 border-r border-white/10">
                         <span className="font-bold text-slate-400">Unassigned / General</span>
                       </td>
                     </tr>
-                    {[...unassignedUsers].sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => renderUserRow(u))}
+                    {unassignedUsers.filter(u => matrix.matchesName(u.name)).sort((a, b) => (a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0)).map(u => renderUserRow(u))}
                   </React.Fragment>
                 )}
               </tbody>

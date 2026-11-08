@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   Calendar,
@@ -35,6 +35,21 @@ export default function DayInspectorPanel({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
 
+  const closeButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement;
+    const close = closeButton.current;
+    close?.focus();
+    return () => {
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected &&
+          (document.activeElement === document.body || document.activeElement === close)) {
+        previousFocus.focus();
+      }
+    };
+  }, [isOpen, selectedDate]);
+
   if (!isOpen || !selectedDate) {
     return null;
   }
@@ -62,11 +77,11 @@ export default function DayInspectorPanel({
   const dayAssignments = assignments.filter(a => a.date === selectedDate);
 
   // Calculate shift hours helper
-  const calculateShiftHours = (startTime?: string, endTime?: string): number => {
-    if (!startTime || !endTime) return 8; // Default 8 hours
+  const calculateShiftHours = (startTime?: string, endTime?: string): number | null => {
+    if (!startTime || !endTime) return null;
     const [sH, sM] = startTime.split(':').map(Number);
     const [eH, eM] = endTime.split(':').map(Number);
-    if (isNaN(sH) || isNaN(eH)) return 8;
+    if (isNaN(sH) || isNaN(eH)) return null;
 
     let startMinutes = sH * 60 + (sM || 0);
     let endMinutes = eH * 60 + (eM || 0);
@@ -92,13 +107,16 @@ export default function DayInspectorPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:pointer-events-none lg:items-stretch lg:justify-end lg:bg-transparent lg:pt-20"
       id="day-inspector-backdrop"
       onClick={onClose}
     >
       <div
-        className="bg-slate-900 border border-white/15 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative my-auto text-slate-100"
+        className="pointer-events-auto bg-slate-900 border border-slate-700 rounded-t-2xl lg:rounded-none w-full max-w-md shadow-2xl flex flex-col max-h-[85dvh] lg:max-h-none overflow-hidden text-slate-100"
         id="day-inspector-panel"
+        role="dialog"
+        aria-labelledby="day-roster-title"
+        onKeyDown={event => { if (event.key === 'Escape') onClose(); }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -109,10 +127,10 @@ export default function DayInspectorPanel({
                 <Calendar className="h-4 w-4" />
               </span>
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
-                Day Inspector
+                Day roster
               </span>
             </div>
-            <h2 className="text-lg font-bold text-white font-display leading-tight">
+            <h2 id="day-roster-title" className="text-lg font-bold text-white font-display leading-tight">
               {formattedDateStr}
             </h2>
             {holiday && (
@@ -128,7 +146,8 @@ export default function DayInspectorPanel({
             onClick={onClose}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors border border-white/10 cursor-pointer"
             id="day-inspector-close-btn"
-            title="Close Day Inspector"
+            ref={closeButton}
+            title="Close Day roster"
           >
             <X className="h-5 w-5" />
           </button>
@@ -179,17 +198,17 @@ export default function DayInspectorPanel({
               return (
                 <div
                   key={a.id}
-                  className="rounded-2xl p-4 bg-white/5 border border-white/10 hover:border-white/20 transition-all space-y-3 shadow-lg relative group"
+                  className="rounded-2xl p-4 bg-white/5 border border-white/10 hover:border-white/20 transition-colors space-y-3 relative"
                   style={{
-                    borderLeft: `4px solid ${a.color || '#3b82f6'}`
+                    borderLeft: `2px solid ${a.color || '#3b82f6'}`
                   }}
                   data-assignment-id={a.id}
                 >
                   {/* Card Header: Doctor & Group info */}
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold text-white font-display">
+                        <span className="text-base font-semibold text-white [overflow-wrap:anywhere]">
                           {displayName}
                         </span>
                         {a.isCurrentUser && (
@@ -214,7 +233,7 @@ export default function DayInspectorPanel({
                     </div>
 
                     {/* Template Badge & Hours */}
-                    <div className="text-right">
+                    <div className="min-w-0 [overflow-wrap:anywhere]">
                       <div className="inline-block px-2.5 py-1 rounded-xl text-xs font-extrabold border" style={{
                         backgroundColor: `${a.color || '#3b82f6'}20`,
                         borderColor: `${a.color || '#3b82f6'}50`,
@@ -222,9 +241,7 @@ export default function DayInspectorPanel({
                       }}>
                         {a.shiftTypeName}
                       </div>
-                      <div className="text-[10px] font-mono text-emerald-400 font-bold mt-1">
-                        {hours} hrs scheduled
-                      </div>
+                      {hours !== null && <div className="text-xs text-slate-300 mt-1">{hours} hrs</div>}
                     </div>
                   </div>
 
@@ -232,7 +249,7 @@ export default function DayInspectorPanel({
                   <div className="flex items-center justify-between text-xs font-mono text-slate-300 pt-2 border-t border-white/5">
                     <div className="flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-slate-400" />
-                      <span>{a.startTime || '07:00'} – {a.endTime || '15:00'}</span>
+                      <span>{a.startTime && a.endTime ? `${a.startTime} – ${a.endTime}` : 'Time unavailable'}</span>
                     </div>
 
                     {/* Scheduler Quick Action Buttons */}

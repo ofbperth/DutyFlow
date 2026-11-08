@@ -56,6 +56,7 @@ export default function AdminDashboard({
 }: AdminDashboardProps) {
 
   // Shift Template state
+  const [adminSection, setAdminSection] = useState<'staff' | 'period' | 'templates' | 'holidays'>('staff');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateStart, setNewTemplateStart] = useState('08:00');
   const [newTemplateEnd, setNewTemplateEnd] = useState('16:00');
@@ -409,6 +410,12 @@ export default function AdminDashboard({
   const virtualUsers = users.filter(u => u.isVirtual);
   const realUsers = users.filter(u => !u.isVirtual);
 
+  const adminSections = [
+    { id: 'staff', label: 'Staff' },
+    { id: 'period', label: 'Period' },
+    { id: 'templates', label: 'Templates' },
+    { id: 'holidays', label: 'Holidays' },
+  ] as const;
   return (
     <div className="space-y-8 font-sans max-w-7xl mx-auto px-2 md:px-0 py-6" id="admin-dashboard-root">
       {/* Messages */}
@@ -444,12 +451,18 @@ export default function AdminDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8" id="admin-grid-layout">
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Admin sections">
+        {adminSections.map(section => (
+          <button key={section.id} type="button" className="duty-control" aria-pressed={adminSection === section.id}
+            onClick={() => setAdminSection(section.id)}>{section.label}</button>
+        ))}
+      </div>
+      <div data-section={adminSection} className="admin-sections space-y-4" id="admin-grid-layout">
         {/* Left Column: Management Forms */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="contents">
 
           {/* Shift Scheduling Period Form */}
-          <div className="glass border border-white/10 rounded-2xl p-5 shadow" id="scheduling-period-card">
+          <div className="glass border border-white/10 rounded-2xl p-5 shadow" data-admin-section="period" id="scheduling-period-card">
             <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
               <Clock className="h-4 w-4 text-emerald-400" />
               <h2 className="text-sm font-semibold text-white font-display">Rotation Schedule Period</h2>
@@ -504,7 +517,7 @@ export default function AdminDashboard({
           </div>
 
           {/* Shift Templates Form */}
-          <div className="glass border border-white/10 rounded-2xl p-5 shadow" id="template-management-card">
+          <div className="glass border border-white/10 rounded-2xl p-5 shadow" data-admin-section="templates" id="template-management-card">
             <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
               <Layers className="h-4 w-4 text-indigo-400" />
               <h2 className="text-sm font-semibold text-white font-display">Add Shift Template</h2>
@@ -584,7 +597,7 @@ export default function AdminDashboard({
           </div>
 
           {/* Holiday Form */}
-          <div className="glass border border-white/10 rounded-2xl p-5 shadow" id="holiday-management-card">
+          <div className="glass border border-white/10 rounded-2xl p-5 shadow" data-admin-section="holidays" id="holiday-management-card">
             <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
               <Calendar className="h-4 w-4 text-blue-400" />
               <h2 className="text-sm font-semibold text-white font-display">Add Hospital Holiday</h2>
@@ -627,9 +640,9 @@ export default function AdminDashboard({
         </div>
 
         {/* Right Column: Dynamic Lists, Virtual User Controls, Staff Management */}
-        <div className="lg:col-span-3 space-y-8">
+        <div className="contents">
           {/* Virtual User Management & Converter */}
-          <div className="glass border border-white/10 rounded-2xl p-5 shadow" id="virtual-users-card">
+          <div className="glass border border-white/10 rounded-2xl p-5 shadow" data-admin-section="staff" id="virtual-users-card">
             <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4 text-amber-400" />
@@ -782,7 +795,7 @@ export default function AdminDashboard({
           </div>
 
           {/* User Directory & Role Management */}
-          <div className="glass border border-white/10 rounded-2xl p-5 shadow" id="staff-directory-card">
+          <div className="glass border border-white/10 rounded-2xl p-5 shadow" data-admin-section="staff" id="staff-directory-card">
             <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-blue-400" />
@@ -860,9 +873,9 @@ export default function AdminDashboard({
           </div>
 
           {/* Hospital Entities visual logs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="contents">
             {/* Holidays list */}
-            <div className="glass border border-white/10 p-4 rounded-xl">
+            <div data-admin-section="holidays" className="glass border border-white/10 p-4 rounded-xl">
               <h3 className="text-xs font-semibold text-slate-300 mb-3 flex items-center gap-2 font-display">
                 <Calendar className="h-3.5 w-3.5 text-blue-400" />
                 Public Holidays ({holidays.length})
@@ -894,7 +907,7 @@ export default function AdminDashboard({
             </div>
 
             {/* Predefined Templates list */}
-            <div className="glass border border-white/10 p-4 rounded-xl" id="templates-list-card">
+            <div className="glass border border-white/10 p-4 rounded-xl" data-admin-section="templates" id="templates-list-card">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2 border-b border-white/5">
                 <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2 font-display">
                   <Layers className="h-3.5 w-3.5 text-indigo-400" />

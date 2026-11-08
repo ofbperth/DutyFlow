@@ -147,20 +147,12 @@ export interface ShiftAssignment {
 }
 
 export interface FourWeekCalendarViewProps {
-  startDate: string; // First day of 28-day rotation
+  dates: string[];
   assignments: ShiftAssignment[];
   currentUserId?: string;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
   onSelectDate: (date: string) => void;
   selectedDate: string | null;
-  // Adaptive Controls Props
-  isScheduler?: boolean;
   onDropShift?: (shiftTypeId: string, date: string) => void;
-  onBatchAssign?: (dates: string[], shiftTypeId: string) => void;
-  onOpenBatchAssign?: () => void;
-  onCopyDayRoster?: (sourceDate: string) => void;
-  onPasteDayRoster?: (targetDate: string) => void;
   copiedRosterDate?: string | null;
   // Extended Adaptive Props
   selectedDates?: string[];

@@ -223,8 +223,12 @@ export const fetchAvailabilities = async (): Promise<Availability[]> => {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as Availability));
 };
 
-export const saveAvailability = async (avail: Availability): Promise<void> => {
-  await setDoc(doc(db, 'availabilities', avail.id), avail);
+export const saveAvailabilities = async (entries: Availability[]): Promise<void> => {
+  const batch = writeBatch(db);
+  for (const entry of entries) {
+    batch.set(doc(db, 'availabilities', entry.id), entry);
+  }
+  await batch.commit();
 };
 
 export const deleteAvailability = async (id: string): Promise<void> => {

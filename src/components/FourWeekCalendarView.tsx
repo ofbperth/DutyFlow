@@ -1,53 +1,28 @@
 import React, { useState } from 'react';
-import { Calendar, LayoutGrid, Sparkles, Check, Copy, MoreVertical, Layers } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
 import { FourWeekCalendarViewProps, ShiftAssignment } from '../types';
 
+const dayLabel = (date: string, options: Intl.DateTimeFormatOptions) =>
+  new Date(date + 'T00:00:00').toLocaleDateString('en-GB', options);
+
 export default function FourWeekCalendarView({
-  startDate,
-  assignments,
-  currentUserId,
-  viewMode,
-  onViewModeChange,
-  onSelectDate,
-  selectedDate,
-  isScheduler = false,
-  onDropShift,
-  onBatchAssign,
-  onOpenBatchAssign,
-  onCopyDayRoster,
-  onPasteDayRoster,
-  copiedRosterDate,
-  selectedDates = [],
-  onToggleSelectDate,
-  onContextMenuDate,
-  holidays = []
+  dates, assignments, currentUserId, onSelectDate, selectedDate, onDropShift,
+  copiedRosterDate, selectedDates = [], onToggleSelectDate, onContextMenuDate, holidays = []
 }: FourWeekCalendarViewProps) {
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [week, setWeek] = useState(0);
+  const lastWeek = Math.max(0, Math.ceil(dates.length / 7) - 1);
+  const activeWeek = Math.min(week, lastWeek);
+  const weekDates = dates.slice(activeWeek * 7, activeWeek * 7 + 7);
+  const byDate = new Map<string, ShiftAssignment[]>();
+  const isMine = (assignment: ShiftAssignment) =>
+    Boolean(assignment.isCurrentUser || assignment.userId === currentUserId);
 
-  // Helper Date Parsing & Formatting
-  const parseLocalDate = (dateStr: string) => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  };
-
-  const formatDateLocal = (date: Date) => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  // Generate all 28 days of the 4-week rotation
-  const datesArray: string[] = [];
-  const startObj = parseLocalDate(startDate);
-  for (let i = 0; i < 28; i++) {
-    const nextDate = new Date(startObj.getTime());
-    nextDate.setDate(nextDate.getDate() + i);
-    datesArray.push(formatDateLocal(nextDate));
+  for (const assignment of assignments) {
+    const day = byDate.get(assignment.date);
+    if (day) day.push(assignment);
+    else byDate.set(assignment.date, [assignment]);
   }
-
-  // Day names for 7 column headers
-  const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const handleCellClick = (dateStr: string, e: React.MouseEvent) => {
     // If Shift or Ctrl/Cmd key is pressed or onToggleSelectDate is supplied and we're in multi-select mode
@@ -83,264 +58,105 @@ export default function FourWeekCalendarView({
   };
 
   return (
-    <div className="w-full space-y-4 font-sans four-week-grid-container" id="four-week-calendar-view">
-      {/* Top Toolbar / View Switcher Header */}
-      <div className="glass border border-white/10 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
-        {/* Rotation Info */}
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-            <Calendar className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-semibold">
-              4-Week Rotation Cycle (28 Days)
-            </div>
-            <div className="text-sm font-bold text-slate-100 font-display">
-              {datesArray[0]} — {datesArray[27]}
-            </div>
-          </div>
-        </div>
-
-        {/* View Switcher Toggle Buttons & Copied Roster Indicator */}
-        <div className="flex items-center gap-3">
-          {onOpenBatchAssign && (
-            <button
-              type="button"
-              onClick={onOpenBatchAssign}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/25 ring-1 ring-indigo-400/40 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-              id="toolbar-batch-assign-btn"
-              title="Open Batch Assignment Modal"
-            >
-              <Layers className="h-4 w-4" />
-              <span>⚡ Batch Assign</span>
-            </button>
-          )}
-
-          {copiedRosterDate && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold animate-pulse" id="copied-roster-badge">
-              <Copy className="h-3.5 w-3.5" />
-              <span>Roster Copied: {copiedRosterDate}</span>
-            </div>
-          )}
-
-          <div className="flex items-center bg-white/5 border border-white/10 p-1 rounded-xl" id="view-switcher-toggle">
-            <button
-              type="button"
-              onClick={() => onViewModeChange('calendar')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'calendar'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              id="view-mode-calendar-btn"
-            >
-              <span>📅 4-Week Calendar</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onViewModeChange('matrix')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'matrix'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              id="view-mode-matrix-btn"
-            >
-              <span>📊 Matrix</span>
-            </button>
-          </div>
-        </div>
+    <section aria-label="Calendar" className="min-w-0 space-y-3" id="four-week-calendar-view">
+      <div className="flex items-center justify-between gap-2 lg:hidden">
+        <button type="button" className="duty-control" aria-label="Previous week" disabled={activeWeek === 0} onClick={() => setWeek(activeWeek - 1)}>
+          <ChevronLeft size={18} />
+        </button>
+        <p className="text-sm font-semibold" aria-live="polite">
+          {weekDates.length ? weekDates.map((date, index) => index === 0 || index === weekDates.length - 1 ? dayLabel(date, { day: 'numeric', month: 'short' }) : '').filter(Boolean).join(' – ') : 'No dates'}
+        </p>
+        <button type="button" className="duty-control" aria-label="Next week" disabled={activeWeek >= lastWeek} onClick={() => setWeek(activeWeek + 1)}>
+          <ChevronRight size={18} />
+        </button>
       </div>
-
-      {/* 7 Columns Day Headers */}
-      <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold font-mono uppercase tracking-wider text-slate-400 border-b border-white/10 pb-2">
-        {dayHeaders.map((header, idx) => (
-          <div
-            key={header}
-            className={`py-1.5 rounded-lg ${idx >= 5 ? 'text-blue-400 bg-blue-500/5' : 'bg-white/5'}`}
-          >
-            {header}
-          </div>
-        ))}
+      {copiedRosterDate && <p className="text-sm text-amber-200" role="status">Roster copied · {copiedRosterDate}</p>}
+      <div className="hidden lg:grid grid-cols-7 gap-2 text-sm text-slate-300">
+        {dates.slice(0, 7).map(date => <span key={date} className="px-2">{dayLabel(date, { weekday: 'short' })}</span>)}
       </div>
-
-      {/* 28-Day 7x4 Responsive Grid Container (Zero Side Scroll) */}
-      <div className="grid grid-cols-7 gap-2 w-full overflow-hidden" id="calendar-28-day-grid">
-        {datesArray.map((dateStr) => {
-          const dateObj = parseLocalDate(dateStr);
-          const dayNum = dateObj.getDate();
-          const monthShort = dateObj.toLocaleDateString('en-US', { month: 'short' });
-          const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-          
-          const holiday = holidays.find(h => h.date === dateStr);
-          const isWeekendOrHoliday = isWeekend || Boolean(holiday);
-          const isSelected = selectedDate === dateStr;
-          const isMultiSelected = selectedDates.includes(dateStr);
-          const isCopiedSource = copiedRosterDate === dateStr;
-          const isDragTarget = dragOverDate === dateStr;
-
-          // Filter assignments for this specific date
-          const dayAssignments = assignments.filter(a => a.date === dateStr);
-
-          // Find if current user has an assigned shift on this date
-          const currentUserShift = dayAssignments.find(
-            a => (currentUserId && a.userId.toLowerCase().trim() === currentUserId.toLowerCase().trim()) || a.isCurrentUser
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-7" id="calendar-28-day-grid">
+        {dates.map((date, index) => {
+          const day = byDate.get(date) ?? [];
+          const sorted = [...day].sort((a, b) =>
+            Number(isMine(b)) - Number(isMine(a)) ||
+            (a.startTime ?? '').localeCompare(b.startTime ?? '') ||
+            a.shiftTypeName.localeCompare(b.shiftTypeName) ||
+            a.userName.localeCompare(b.userName)
           );
-
-          // Group shifts by shift template/type name for summary chips
-          const shiftSummaryMap: Record<string, { typeName: string; color: string; count: number }> = {};
-          dayAssignments.forEach(a => {
-            const key = a.shiftTypeId || a.shiftTypeName;
-            if (!shiftSummaryMap[key]) {
-              shiftSummaryMap[key] = {
-                typeName: a.shiftTypeName,
-                color: a.color || '#3b82f6',
-                count: 0
-              };
-            }
-            shiftSummaryMap[key].count += 1;
-          });
-
-          const summaryList = Object.values(shiftSummaryMap);
-
+          const groups = new Map<string, ShiftAssignment[]>();
+          for (const assignment of sorted) {
+            const key = assignment.shiftTypeId || assignment.shiftTypeName;
+            const group = groups.get(key);
+            if (group) group.push(assignment);
+            else groups.set(key, [assignment]);
+          }
+          const preview = new Set(sorted.slice(0, Math.max(4, sorted.filter(isMine).length)));
+          const hiddenCount = day.length - preview.size;
+          const holiday = holidays.find(item => item.date === date);
+          const isBatchSelected = selectedDates.includes(date);
+          const isWeekend = [0, 6].includes(new Date(date + 'T00:00:00').getDay());
           return (
-            <div
-              key={dateStr}
-              onClick={(e) => handleCellClick(dateStr, e)}
-              onContextMenu={(e) => {
-                if (onContextMenuDate) {
-                  e.preventDefault();
-                  onContextMenuDate(dateStr, e);
-                }
-              }}
-              onDragOver={(e) => handleDragOverCell(dateStr, e)}
-              onDragLeave={(e) => handleDragLeaveCell(dateStr, e)}
-              onDrop={(e) => handleDropOnCell(dateStr, e)}
-              className={`min-h-[110px] sm:min-h-[135px] rounded-xl p-2 font-sans border transition-all duration-200 flex flex-col justify-between cursor-pointer relative group ${
-                isDragTarget
-                  ? 'ring-2 ring-blue-400 border-blue-400 bg-blue-500/20 scale-[1.02] shadow-xl'
-                  : isSelected
-                  ? 'ring-2 ring-emerald-500 border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
-                  : isMultiSelected
-                  ? 'ring-2 ring-indigo-500 border-indigo-500 bg-indigo-500/10'
-                  : isCopiedSource
-                  ? 'border-amber-400 bg-amber-500/10'
-                  : isWeekendOrHoliday
-                  ? 'bg-blue-500/10 border-blue-500/30 hover:border-blue-500/40 hover:bg-blue-500/15'
-                  : 'bg-slate-900/60 border-white/10 hover:border-white/20 hover:bg-slate-800/80'
+            <article
+              key={date}
+              data-date={date}
+              className={`relative min-w-0 rounded-xl border p-2 lg:min-h-28 ${Math.floor(index / 7) !== activeWeek ? 'hidden lg:block' : ''} ${
+                dragOverDate === date || selectedDate === date || isBatchSelected
+                  ? 'border-emerald-400 bg-emerald-400/10'
+                  : holiday || isWeekend ? 'border-slate-700 bg-slate-800/80' : 'border-slate-800 bg-slate-900'
               }`}
-              data-date={dateStr}
+              onDragOver={onDropShift ? event => handleDragOverCell(date, event) : undefined}
+              onDragLeave={onDropShift ? event => handleDragLeaveCell(date, event) : undefined}
+              onDrop={onDropShift ? event => handleDropOnCell(date, event) : undefined}
+              onContextMenu={onContextMenuDate ? event => {
+                event.preventDefault();
+                onContextMenuDate(date, event);
+              } : undefined}
             >
-              {/* Day Cell Header */}
-              <div className="flex items-center justify-between gap-1 border-b border-white/5 pb-1">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className={`text-xs sm:text-sm font-extrabold font-mono tabular-nums ${
-                    isWeekendOrHoliday
-                      ? 'text-blue-400'
-                      : 'text-slate-200'
-                  }`}>
-                    {dayNum}
-                  </span>
-                  <span className="text-[9px] text-slate-400 font-mono hidden sm:inline">
-                    {monthShort}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {holiday && (
-                    <span className="text-[8px] px-1 py-0.25 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 truncate max-w-[50px]" title={holiday.name}>
-                      {holiday.name}
-                    </span>
-                  )}
-                  {isMultiSelected && (
-                    <span className="bg-indigo-500 text-white rounded p-0.5 text-[8px]" title="Selected in Batch">
-                      <Check className="h-2.5 w-2.5" />
-                    </span>
-                  )}
-                  {onContextMenuDate && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onContextMenuDate(dateStr, e);
-                      }}
-                      className="p-0.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                      title="Touch Menu Actions"
-                    >
-                      <MoreVertical className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
+              <button
+                type="button"
+                className="absolute inset-0 w-full rounded-xl cursor-pointer"
+                aria-label={`View roster for ${dayLabel(date, { dateStyle: 'full' })}, ${day.length} shifts${isBatchSelected ? ', selected for batch' : ''}`}
+                onClick={event => handleCellClick(date, event)}
+              />
+              <div className="pointer-events-none relative flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-100">
+                  <span className="lg:hidden">{dayLabel(date, { weekday: 'short' })} </span>
+                  {dayLabel(date, { day: 'numeric', month: 'short' })}
+                </p>
+                {isBatchSelected && <Check size={14} aria-hidden="true" />}
+                {onContextMenuDate && (
+                  <button type="button" aria-label={`Actions for ${date}`} className="pointer-events-auto duty-control duty-icon" onClick={event => onContextMenuDate(date, event)}>
+                    <MoreVertical size={16} />
+                  </button>
+                )}
               </div>
-
-              {/* Day Cell Main Content */}
-              <div className="my-1.5 space-y-1.5 flex-1 overflow-y-auto max-h-[85px] scrollbar-none">
-                {/* Current User Glowing Highlight Badge ("YOU: Shift Name") */}
-                {currentUserShift && (
-                  <div
-                    className="glow-user-shift rounded-lg p-1.5 bg-amber-500/20 border-2 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.6)] flex items-center justify-between"
-                    title={`Assigned to ${currentUserShift.shiftTypeName}`}
-                  >
-                    <div className="flex items-center gap-1 min-w-0 truncate">
-                      <Sparkles className="h-3 w-3 text-amber-400 shrink-0" />
-                      <span className="font-extrabold text-[10px] sm:text-xs tracking-wide truncate">
-                        YOU: {currentUserShift.shiftTypeName}
-                      </span>
+              <div className="pointer-events-none relative mt-2 space-y-2">
+                {holiday && <p className="text-xs text-amber-200 [overflow-wrap:anywhere]">{holiday.name}</p>}
+                {[...groups.entries()].map(([key, group]) => {
+                  const visible = group.filter(assignment => preview.has(assignment));
+                  if (!visible.length) return null;
+                  return (
+                    <div key={key} className="space-y-0.5">
+                      <p className="flex items-baseline gap-1.5 text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">
+                        <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: group[0].color }} />
+                        {group[0].shiftTypeName}
+                      </p>
+                      {visible.map(assignment => (
+                        <p key={assignment.id} className={`rounded px-1.5 text-sm leading-snug [overflow-wrap:anywhere] ${isMine(assignment) ? 'bg-amber-400/15 font-semibold text-amber-100' : 'text-slate-200'}`}>
+                          {assignment.userName}{isMine(assignment) && <span className="ml-1 text-xs">(You)</span>}
+                          {assignment.status === 'draft' && <span className="ml-1 text-xs text-amber-200">Draft</span>}
+                        </p>
+                      ))}
                     </div>
-                    {currentUserShift.startTime && (
-                      <span className="text-[8px] sm:text-[9px] font-mono opacity-80 shrink-0 ml-1">
-                        {currentUserShift.startTime}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Color-Coded Shift Summary Chips */}
-                {summaryList.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {summaryList.map(summary => (
-                      <div
-                        key={summary.typeName}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold border shrink-0 max-w-full"
-                        style={{
-                          backgroundColor: `${summary.color}20`,
-                          borderColor: `${summary.color}50`,
-                          color: '#ffffff'
-                        }}
-                        title={`${summary.typeName}: ${summary.count} staff assigned`}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: summary.color }} />
-                        <span className="truncate max-w-[55px] sm:max-w-[75px]">{summary.typeName}</span>
-                        <span className="px-1 rounded-full text-[8px] bg-white/20 font-mono font-bold">
-                          {summary.count}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  !currentUserShift && (
-                    <div className="text-[9px] text-slate-400 italic opacity-60 pt-1">
-                      No shifts
-                    </div>
-                  )
-                )}
+                  );
+                })}
+                {!day.length && <p className="text-xs text-slate-400">No shifts</p>}
+                {hiddenCount > 0 && <p className="text-xs font-semibold text-emerald-300">View {hiddenCount} more</p>}
               </div>
-
-              {/* Day Cell Footer Stats */}
-              <div className="pt-1 border-t border-white/5 flex items-center justify-between text-[9px] font-mono text-slate-400">
-                <span className="tabular-nums font-semibold">
-                  {dayAssignments.length} staff
-                </span>
-                {isScheduler && (
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity text-emerald-400 font-bold text-[8px]">
-                    + Shift
-                  </span>
-                )}
-              </div>
-            </div>
+            </article>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
